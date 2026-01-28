@@ -6,6 +6,11 @@ import json
 import os
 from http.server import BaseHTTPRequestHandler
 
+# Strip whitespace from environment variables before importing pymilvus
+# (pymilvus reads MILVUS_URI at import time)
+if 'MILVUS_URI' in os.environ:
+    os.environ['MILVUS_URI'] = os.environ['MILVUS_URI'].strip()
+
 from openai import OpenAI
 from pymilvus import (
     MilvusClient,
@@ -18,9 +23,9 @@ from pymilvus import (
 
 # Configuration from environment variables
 COLLECTION_NAME = 'semantic_scholar_papers'
-MILVUS_URI = os.environ.get('MILVUS_URI', '')
-MILVUS_TOKEN = os.environ.get('MILVUS_TOKEN', '')
-SEMANTIC_HIGHLIGHTER_MODEL_ID = os.environ.get('SEMANTIC_HIGHLIGHTER_MODEL_ID', '69709caee4b0e9c6929808b8')
+MILVUS_URI = os.environ.get('MILVUS_URI', '').strip()
+MILVUS_TOKEN = os.environ.get('MILVUS_TOKEN', '').strip()
+SEMANTIC_HIGHLIGHTER_MODEL_ID = os.environ.get('SEMANTIC_HIGHLIGHTER_MODEL_ID', '69709caee4b0e9c6929808b8').strip()
 CURRENT_YEAR = 2025
 
 # Clients (initialized lazily)
@@ -220,6 +225,8 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(result).encode('utf-8'))
 
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.send_response(500)
             self.send_header('Content-Type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
