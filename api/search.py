@@ -18,14 +18,12 @@ from pymilvus import (
     FunctionType,
     FunctionScore,
     LexicalHighlighter,
-    SemanticHighlighter,
 )
 
 # Configuration from environment variables
 COLLECTION_NAME = 'semantic_scholar_papers'
 MILVUS_URI = os.environ.get('MILVUS_URI', '').strip()
 MILVUS_TOKEN = os.environ.get('MILVUS_TOKEN', '').strip()
-SEMANTIC_HIGHLIGHTER_MODEL_ID = os.environ.get('SEMANTIC_HIGHLIGHTER_MODEL_ID', '69709caee4b0e9c6929808b8').strip()
 CURRENT_YEAR = 2025
 
 # Clients (initialized lazily)
@@ -150,6 +148,8 @@ def search_papers(request_data: dict) -> dict:
             'highlighter': highlighter,
         }
     else:
+        # Dense vector search (for 'none' or 'semantic' modes)
+        # Note: Semantic highlighting is disabled - using client-side fallback
         embeddings = get_embeddings(query)
         search_kwargs = {
             'data': embeddings,
@@ -157,16 +157,6 @@ def search_papers(request_data: dict) -> dict:
             'anns_field': 'vector',
             'limit': limit,
         }
-
-        if highlight_mode == "semantic":
-            highlighter = SemanticHighlighter(
-                queries=[query],
-                input_fields=['title'],
-                pre_tags=["<mark class='semantic'>"],
-                post_tags=["</mark>"],
-                model_deployment_id=SEMANTIC_HIGHLIGHTER_MODEL_ID
-            )
-            search_kwargs['highlighter'] = highlighter
 
     if functions:
         combined_ranker = FunctionScore(functions=functions)

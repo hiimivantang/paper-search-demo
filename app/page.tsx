@@ -25,7 +25,7 @@ interface SearchResult {
   };
 }
 
-type HighlightMode = 'none' | 'lexical' | 'semantic';
+type HighlightMode = 'none' | 'lexical';
 
 function highlightText(
   text: string,
@@ -54,73 +54,6 @@ function highlightText(
       }
       return part;
     });
-  }
-
-  if (mode === 'semantic') {
-    // Semantic highlighting: highlight semantically related terms
-    // This is a simplified version - true semantic highlighting would use embeddings
-    const textLower = text.toLowerCase();
-    const queryLower = query.toLowerCase();
-
-    // Find phrases that are semantically similar (simplified: partial matches and related terms)
-    const highlights: Array<{ start: number; end: number }> = [];
-
-    // Check for exact phrase match
-    const phraseIndex = textLower.indexOf(queryLower);
-    if (phraseIndex !== -1) {
-      highlights.push({ start: phraseIndex, end: phraseIndex + query.length });
-    }
-
-    // Check for individual word matches with context
-    words.forEach(word => {
-      let index = 0;
-      while ((index = textLower.indexOf(word, index)) !== -1) {
-        // Extend highlight to include the full word
-        let start = index;
-        let end = index + word.length;
-
-        // Extend to word boundaries
-        while (start > 0 && /\w/.test(text[start - 1])) start--;
-        while (end < text.length && /\w/.test(text[end])) end++;
-
-        highlights.push({ start, end });
-        index = end;
-      }
-    });
-
-    if (highlights.length === 0) {
-      return text;
-    }
-
-    // Merge overlapping highlights
-    highlights.sort((a, b) => a.start - b.start);
-    const merged: Array<{ start: number; end: number }> = [];
-    for (const h of highlights) {
-      if (merged.length === 0 || h.start > merged[merged.length - 1].end) {
-        merged.push({ ...h });
-      } else {
-        merged[merged.length - 1].end = Math.max(merged[merged.length - 1].end, h.end);
-      }
-    }
-
-    // Build highlighted text
-    const result: React.ReactNode[] = [];
-    let lastEnd = 0;
-    merged.forEach((h, i) => {
-      if (h.start > lastEnd) {
-        result.push(text.slice(lastEnd, h.start));
-      }
-      result.push(
-        <span key={i} className="bg-green-200 px-0.5 rounded">
-          {text.slice(h.start, h.end)}
-        </span>
-      );
-      lastEnd = h.end;
-    });
-    if (lastEnd < text.length) {
-      result.push(text.slice(lastEnd));
-    }
-    return result;
   }
 
   return text;
@@ -282,18 +215,6 @@ export default function Home() {
                   />
                   <span className="text-sm text-gray-700">
                     Lexical <span className="bg-yellow-200 px-1 rounded text-xs">(yellow)</span>
-                  </span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="highlight"
-                    checked={highlightMode === 'semantic'}
-                    onChange={() => setHighlightMode('semantic')}
-                    className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">
-                    Semantic <span className="bg-green-200 px-1 rounded text-xs">(green)</span>
                   </span>
                 </label>
               </div>
