@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 interface Paper {
   id: string;
@@ -71,6 +71,38 @@ export default function Home() {
   const [highlightMode, setHighlightMode] = useState<HighlightMode>('lexical');
   const [limit, setLimit] = useState(10);
 
+  // Autocomplete
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedIdx, setSelectedIdx] = useState(-1);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (query.trim().length < 4) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/autocomplete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: query.trim(), limit: 5 }),
+        });
+        const data = await res.json();
+        setSuggestions(data.titles || []);
+        setShowSuggestions((data.titles || []).length > 0);
+        setSelectedIdx(-1);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 200);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [query]);
+
   // Advanced time decay parameters
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [origin, setOrigin] = useState(2025);
@@ -115,7 +147,30 @@ export default function Home() {
   }, [query, limit, useTimeDecay, useBoost, highlightMode, origin, offset, decay, scale]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (showSuggestions && suggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIdx(prev => (prev + 1) % suggestions.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIdx(prev => (prev - 1 + suggestions.length) % suggestions.length);
+        return;
+      }
+      if (e.key === 'Enter' && selectedIdx >= 0) {
+        e.preventDefault();
+        setQuery(suggestions[selectedIdx]);
+        setShowSuggestions(false);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setShowSuggestions(false);
+        return;
+      }
+    }
     if (e.key === 'Enter') {
+      setShowSuggestions(false);
       handleSearch();
     }
   };
@@ -135,14 +190,38 @@ export default function Home() {
         {/* Search Box */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex gap-3 mb-4">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Search for papers (e.g., 'vehicle automation', 'deep learning')"
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+            <div className="flex-1 relative">
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                placeholder="Search for papers (e.g., 'vehicle automation', 'deep learning')"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                autoComplete="off"
+              />
+              {showSuggestions && suggestions.length > 0 && (
+                <ul className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                  {suggestions.map((title, i) => (
+                    <li
+                      key={i}
+                      className={`px-4 py-2 text-sm cursor-pointer ${
+                        i === selectedIdx ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                      onMouseDown={() => {
+                        setQuery(title);
+                        setShowSuggestions(false);
+                      }}
+                    >
+                      {title}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             <button
               onClick={handleSearch}
               disabled={loading || !query.trim()}

@@ -298,6 +298,28 @@ async def search(request: SearchRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class AutocompleteRequest(BaseModel):
+    query: str
+    limit: int = 5
+
+
+@app.post("/api/autocomplete")
+async def autocomplete(request: AutocompleteRequest):
+    substring = request.query.strip()
+    if not substring or len(substring) < 4:
+        return {"titles": []}
+
+    client = get_milvus_client()
+    safe = substring.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+    result = client.query(
+        collection_name=COLLECTION_NAME,
+        filter=f'title LIKE "%{safe}%"',
+        output_fields=['title'],
+        limit=request.limit,
+    )
+    return {"titles": [hit['title'] for hit in result]}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
