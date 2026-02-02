@@ -228,8 +228,7 @@ export default function Home() {
                         ) : title}
                       </li>
                     );
-                  }
-                  ))}
+                  })}
                 </ul>
               )}
             </div>
