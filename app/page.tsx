@@ -205,19 +205,30 @@ export default function Home() {
               />
               {showSuggestions && suggestions.length > 0 && (
                 <ul className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-                  {suggestions.map((title, i) => (
-                    <li
-                      key={i}
-                      className={`px-4 py-2 text-sm cursor-pointer ${
-                        i === selectedIdx ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
-                      }`}
-                      onMouseDown={() => {
-                        setQuery(title);
-                        setShowSuggestions(false);
-                      }}
-                    >
-                      {title}
-                    </li>
+                  {suggestions.map((title, i) => {
+                    const q = query.trim();
+                    const idx = title.indexOf(q);
+                    return (
+                      <li
+                        key={i}
+                        className={`px-4 py-2 text-sm cursor-pointer ${
+                          i === selectedIdx ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                        onMouseDown={() => {
+                          setQuery(title);
+                          setShowSuggestions(false);
+                        }}
+                      >
+                        {idx >= 0 ? (
+                          <>
+                            {title.slice(0, idx)}
+                            <strong className="font-bold">{title.slice(idx, idx + q.length)}</strong>
+                            {title.slice(idx + q.length)}
+                          </>
+                        ) : title}
+                      </li>
+                    );
+                  }
                   ))}
                 </ul>
               )}
