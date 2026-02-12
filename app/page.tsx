@@ -554,7 +554,7 @@ export default function Home() {
                         </div>
                       </div>
                       <a
-                        href={paper.url}
+                        href={`https://www.semanticscholar.org/paper/${paper.corpusid}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium whitespace-nowrap opacity-60 group-hover:opacity-100 mt-1"
