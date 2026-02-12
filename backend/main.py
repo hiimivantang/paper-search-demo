@@ -42,7 +42,7 @@ COLLECTION_NAME = 'semantic_scholar_papers'
 MILVUS_URI = os.getenv('MILVUS_URI', 'https://in01-62d9b281022a9f8.aws-us-west-2.vectordb.zillizcloud.com:19541')
 MILVUS_TOKEN = os.getenv('MILVUS_TOKEN', 'c09d527d89d16ec55b2fe2d9d33412ef2449dd92e7e259d479917687468da2302399d062fc16830ca19a8d77bc95616ac36ea8bf')
 SEMANTIC_HIGHLIGHTER_MODEL_ID = os.getenv('SEMANTIC_HIGHLIGHTER_MODEL_ID', '69709caee4b0e9c6929808b8')
-CURRENT_YEAR = 2025
+CURRENT_YEAR = 2026
 
 # Initialize clients
 milvus_client = None

@@ -96,6 +96,17 @@ function LoadingSpinner() {
   );
 }
 
+function getReaderUrl(paperUrl: string): string {
+  try {
+    const url = new URL(paperUrl);
+    const segments = url.pathname.split('/').filter(Boolean);
+    if (segments.length >= 3 && segments[0] === 'paper') {
+      return `https://www.semanticscholar.org/reader/${segments[segments.length - 1]}`;
+    }
+  } catch { /* fallback below */ }
+  return paperUrl;
+}
+
 function formatCitations(count: number): string {
   if (count >= 1000) {
     return `${(count / 1000).toFixed(count >= 10000 ? 0 : 1)}k`;
@@ -112,8 +123,9 @@ export default function Home() {
   // Options
   const [useTimeDecay, setUseTimeDecay] = useState(false);
   const [useBoost, setUseBoost] = useState(false);
-  const [highlightMode, setHighlightMode] = useState<HighlightMode>('lexical');
+  const [highlightMode, setHighlightMode] = useState<HighlightMode>('none');
   const [limit, setLimit] = useState(10);
+  const [viewingPaper, setViewingPaper] = useState<Paper | null>(null);
   const [showOptions, setShowOptions] = useState(false);
 
   // Autocomplete
@@ -150,7 +162,7 @@ export default function Home() {
 
   // Advanced time decay parameters
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [origin, setOrigin] = useState(2025);
+  const [origin, setOrigin] = useState(2026);
   const [offset, setOffset] = useState(5);
   const [decay, setDecay] = useState(0.8);
   const [scale, setScale] = useState(8);
@@ -223,7 +235,7 @@ export default function Home() {
   const activeOptionsCount = [useTimeDecay, useBoost, highlightMode !== 'none'].filter(Boolean).length;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className={`min-h-screen bg-slate-50 transition-[margin] duration-300 ${viewingPaper ? 'mr-[50vw]' : ''}`}>
       {/* Header */}
       <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
         <div className="max-w-3xl mx-auto px-4 pt-12 pb-16">
@@ -232,7 +244,7 @@ export default function Home() {
               <span className="gradient-text">Paper Search</span>
             </h1>
             <p className="text-slate-400 text-base max-w-lg mx-auto">
-              Semantic search over academic papers using vector similarity, re-ranking, and highlighting
+              Powered by <span className="text-blue-400 font-medium">Milvus 2.6</span> &mdash; semantic search, full text search, decay &amp; boost rankers
             </p>
           </div>
 
@@ -332,8 +344,8 @@ export default function Home() {
                     className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 mt-0.5"
                   />
                   <div>
-                    <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Time Decay Ranker</span>
-                    <p className="text-xs text-slate-400 mt-0.5">Prefer recent papers with exponential decay</p>
+                    <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Decay Ranker</span>
+                    <p className="text-xs text-slate-400 mt-0.5">Milvus 2.6 &mdash; prefer recent papers with exponential decay</p>
                   </div>
                 </label>
 
@@ -345,8 +357,8 @@ export default function Home() {
                     className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 mt-0.5"
                   />
                   <div>
-                    <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Citation Boosting</span>
-                    <p className="text-xs text-slate-400 mt-0.5">Boost highly-cited papers (1.1x&ndash;1.5x)</p>
+                    <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Boost Ranker</span>
+                    <p className="text-xs text-slate-400 mt-0.5">Milvus 2.6 &mdash; boost highly-cited papers (1.1x&ndash;1.5x)</p>
                   </div>
                 </label>
               </div>
@@ -364,7 +376,7 @@ export default function Home() {
                           : 'text-slate-500 hover:text-slate-700'
                       }`}
                     >
-                      Off
+                      None
                     </button>
                     <button
                       onClick={() => setHighlightMode('lexical')}
@@ -377,6 +389,11 @@ export default function Home() {
                       Lexical
                     </button>
                   </div>
+                  {highlightMode === 'lexical' && (
+                    <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
+                      Full Text Search (BM25)
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -478,13 +495,28 @@ export default function Home() {
                   {results.papers.length} paper{results.papers.length !== 1 ? 's' : ''} for &ldquo;{results.query}&rdquo;
                 </span>
               </div>
-              <div className="flex gap-1.5">
+              <div className="flex gap-1.5 flex-wrap">
+                {results.options.highlight_mode === 'lexical' ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full">
+                    <svg className="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.5 2A1.5 1.5 0 003 3.5v13A1.5 1.5 0 004.5 18h11a1.5 1.5 0 001.5-1.5V7.621a1.5 1.5 0 00-.44-1.06l-4.12-4.122A1.5 1.5 0 0011.378 2H4.5zM14 11.75a.75.75 0 00-.75-.75h-6.5a.75.75 0 000 1.5h6.5a.75.75 0 00.75-.75zm-1-3.5a.75.75 0 00-.75-.75h-4.5a.75.75 0 000 1.5h4.5a.75.75 0 00.75-.75z" clipRule="evenodd" />
+                    </svg>
+                    Full Text Search
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full">
+                    <svg className="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M10 1a6 6 0 00-3.815 10.631C7.237 12.5 8 13.443 8 14.456v.644a.75.75 0 00.75.75h2.5a.75.75 0 00.75-.75v-.644c0-1.013.762-1.957 1.815-2.825A6 6 0 0010 1zM8.863 17.414a.75.75 0 00-.226 1.483 9.066 9.066 0 002.726 0 .75.75 0 00-.226-1.483 7.563 7.563 0 01-2.274 0z" />
+                    </svg>
+                    Semantic Search
+                  </span>
+                )}
                 {results.options.use_time_decay && (
                   <span className="inline-flex items-center gap-1 text-xs font-medium bg-violet-50 text-violet-700 border border-violet-200 px-2.5 py-1 rounded-full">
                     <svg className="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clipRule="evenodd" />
                     </svg>
-                    Time Decay
+                    Decay Ranker
                   </span>
                 )}
                 {results.options.use_boost && (
@@ -492,7 +524,7 @@ export default function Home() {
                     <svg className="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M12.577 4.878a.75.75 0 01.919-.53l4.78 1.281a.75.75 0 01.531.919l-1.281 4.78a.75.75 0 01-1.449-.387l.81-3.022a19.407 19.407 0 00-5.594 5.203.75.75 0 01-1.139.093L7 10.06l-4.72 4.72a.75.75 0 01-1.06-1.06l5.25-5.25a.75.75 0 011.06 0l3.074 3.073a20.923 20.923 0 015.545-4.931l-3.042.815a.75.75 0 01-.53-.919z" clipRule="evenodd" />
                     </svg>
-                    Citation Boost
+                    Boost Ranker
                   </span>
                 )}
               </div>
@@ -553,17 +585,16 @@ export default function Home() {
                           </span>
                         </div>
                       </div>
-                      <a
-                        href={paper.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => setViewingPaper(paper)}
                         className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium whitespace-nowrap opacity-60 group-hover:opacity-100 mt-1"
                       >
                         View
                         <svg className="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M4.25 5.5a.75.75 0 00-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 00.75-.75v-4a.75.75 0 011.5 0v4A2.25 2.25 0 0112.75 17h-8.5A2.25 2.25 0 012 14.75v-8.5A2.25 2.25 0 014.25 4h5a.75.75 0 010 1.5h-5zm7.25-.75a.75.75 0 01.75-.75h3.5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0V6.31l-5.47 5.47a.75.75 0 01-1.06-1.06l5.47-5.47H12.25a.75.75 0 01-.75-.75z" clipRule="evenodd" />
+                          <path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+                          <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41ZM14 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" clipRule="evenodd" />
                         </svg>
-                      </a>
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -588,12 +619,51 @@ export default function Home() {
         {/* Footer */}
         <footer className="py-8 mt-8 border-t border-slate-200 text-center">
           <p className="text-xs text-slate-400">
-            Powered by <span className="font-medium text-slate-500">Milvus</span> vector database
+            Powered by <span className="font-medium text-slate-500">Milvus 2.6</span> vector database
             &nbsp;&middot;&nbsp;
             <span className="font-medium text-slate-500">OpenAI</span> text-embedding-3-small
           </p>
+          <p className="text-[10px] text-slate-300 mt-1">
+            Semantic search &middot; Full text search (BM25) &middot; Decay ranker &middot; Boost ranker &middot; Lexical highlighting
+          </p>
         </footer>
       </div>
+
+      {/* Paper Viewer Pane */}
+      {viewingPaper && (
+        <div className="fixed top-0 right-0 w-[50vw] h-screen bg-white border-l border-slate-200 z-50 flex flex-col shadow-2xl animate-slide-in-right">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50 flex-shrink-0">
+            <div className="min-w-0 flex-1 mr-4">
+              <h3 className="font-medium text-slate-800 text-sm truncate">{viewingPaper.title}</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Semantic Reader</p>
+            </div>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <a
+                href={getReaderUrl(viewingPaper.url)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Open in new tab
+              </a>
+              <button
+                onClick={() => setViewingPaper(null)}
+                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600"
+              >
+                <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <iframe
+            src={getReaderUrl(viewingPaper.url)}
+            className="flex-1 w-full border-0"
+            title={`Reading: ${viewingPaper.title}`}
+            allow="fullscreen"
+          />
+        </div>
+      )}
     </div>
   );
 }

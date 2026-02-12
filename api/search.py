@@ -24,7 +24,7 @@ from pymilvus import (
 COLLECTION_NAME = 'semantic_scholar_papers'
 MILVUS_URI = os.environ.get('MILVUS_URI', '').strip()
 MILVUS_TOKEN = os.environ.get('MILVUS_TOKEN', '').strip()
-CURRENT_YEAR = 2025
+CURRENT_YEAR = 2026
 
 # Clients (initialized lazily)
 _milvus_client = None
