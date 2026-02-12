@@ -26,6 +26,7 @@ interface SearchResult {
 }
 
 type HighlightMode = 'none' | 'lexical';
+type SearchMode = 'semantic' | 'keyword' | 'hybrid';
 
 function highlightText(
   text: string,
@@ -109,6 +110,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Search mode
+  const [searchMode, setSearchMode] = useState<SearchMode>('hybrid');
+
   // Options
   const [useTimeDecay, setUseTimeDecay] = useState(false);
   const [useBoost, setUseBoost] = useState(false);
@@ -170,6 +174,7 @@ export default function Home() {
         body: JSON.stringify({
           query: query.trim(),
           limit,
+          search_mode: searchMode,
           use_time_decay: useTimeDecay,
           use_boost: useBoost,
           highlight_mode: highlightMode,
@@ -189,7 +194,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [query, limit, useTimeDecay, useBoost, highlightMode, origin, offset, decay, scale]);
+  }, [query, limit, searchMode, useTimeDecay, useBoost, highlightMode, origin, offset, decay, scale]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (showSuggestions && suggestions.length > 0) {
@@ -220,6 +225,21 @@ export default function Home() {
     }
   };
 
+  const handleSearchModeChange = useCallback((mode: SearchMode) => {
+    setSearchMode(mode);
+  }, []);
+
+  // Re-execute search when searchMode changes (if a query exists)
+  const prevSearchModeRef = useRef(searchMode);
+  useEffect(() => {
+    if (prevSearchModeRef.current !== searchMode && query.trim()) {
+      prevSearchModeRef.current = searchMode;
+      handleSearch();
+    } else {
+      prevSearchModeRef.current = searchMode;
+    }
+  }, [searchMode, query, handleSearch]);
+
   const activeOptionsCount = [useTimeDecay, useBoost, highlightMode !== 'none'].filter(Boolean).length;
 
   return (
@@ -234,6 +254,34 @@ export default function Home() {
             <p className="text-slate-500 text-sm">
               Semantic paper search powered by Milvus v2.6
             </p>
+          </div>
+
+          {/* Search Mode Switcher */}
+          <div className="flex justify-center mb-6">
+            <div className="inline-flex bg-slate-100 rounded-lg p-1 gap-1">
+              {([
+                { mode: 'semantic' as SearchMode, label: 'Semantic', subtitle: 'Conceptual similarity' },
+                { mode: 'keyword' as SearchMode, label: 'Keyword', subtitle: 'Exact term matching' },
+                { mode: 'hybrid' as SearchMode, label: 'Hybrid', subtitle: 'Combined search' },
+              ]).map(({ mode, label, subtitle }) => (
+                <button
+                  key={mode}
+                  onClick={() => handleSearchModeChange(mode)}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    searchMode === mode
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-800 hover:bg-slate-200'
+                  }`}
+                >
+                  <span className="block">{label}</span>
+                  <span className={`block text-[10px] font-normal mt-0.5 ${
+                    searchMode === mode ? 'text-blue-100' : 'text-slate-400'
+                  }`}>
+                    {subtitle}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Search Box */}

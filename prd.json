@@ -125,7 +125,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": "Depends on US-002 (hybrid search endpoint) and US-006 (header redesign). The frontend needs to pass search_mode to the backend. For 'keyword' mode, use the existing lexical/BM25 path. For 'semantic', use the existing dense vector path. For 'hybrid', use the new hybrid endpoint."
     },
     {
