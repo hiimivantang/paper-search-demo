@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "2e559af43343",
+  "strategy": "manual-commit",
+  "branch": "ralph/milvus-v26-paper-search",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/page.tsx",
+    "prd.json",
+    "progress.txt"
+  ],
+  "sessions": [
+    {
+      "metadata": "/2e/559af43343/0/metadata.json",
+      "transcript": "/2e/559af43343/0/full.jsonl",
+      "context": "/2e/559af43343/0/context.md",
+      "content_hash": "/2e/559af43343/0/content_hash.txt",
+      "prompt": "/2e/559af43343/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 18155,
+    "cache_creation_tokens": 68199,
+    "cache_read_tokens": 2264381,
+    "output_tokens": 320,
+    "api_call_count": 36
+  }
+}
