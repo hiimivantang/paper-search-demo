@@ -127,6 +127,27 @@ mark.semantic {
   animation: pulse-dot 1.4s ease-in-out infinite;
 }
 
+/* Slide in from right animation for viewer pane */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Gradient text helper */
+.gradient-text {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
 /* Custom scrollbar for autocomplete */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;

@@ -98,6 +98,17 @@ function LoadingSpinner() {
   );
 }
 
+function getReaderUrl(paperUrl: string): string {
+  try {
+    const url = new URL(paperUrl);
+    const segments = url.pathname.split('/').filter(Boolean);
+    if (segments.length >= 3 && segments[0] === 'paper') {
+      return `https://www.semanticscholar.org/reader/${segments[segments.length - 1]}`;
+    }
+  } catch { /* fallback below */ }
+  return paperUrl;
+}
+
 function formatCitations(count: number): string {
   if (count >= 1000) {
     return `${(count / 1000).toFixed(count >= 10000 ? 0 : 1)}k`;
@@ -122,6 +133,7 @@ export default function Home() {
   const [limit, setLimit] = useState(10);
   const [showSettings, setShowSettings] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
+  const [viewingPaper, setViewingPaper] = useState<Paper | null>(null);
 
   // Filters
   const [yearMin, setYearMin] = useState<string>('');
@@ -178,7 +190,7 @@ export default function Home() {
 
   // Advanced time decay parameters
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [origin, setOrigin] = useState(2025);
+  const [origin, setOrigin] = useState(2026);
   const [offset, setOffset] = useState(5);
   const [decay, setDecay] = useState(0.8);
   const [scale, setScale] = useState(8);
@@ -307,7 +319,7 @@ export default function Home() {
   if (highlightMode === 'lexical') settingsSummary.push('Keyword highlights');
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className={`min-h-screen bg-white transition-[margin] duration-300 ${viewingPaper ? 'mr-[50vw]' : ''}`}>
       {/* Header */}
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-4 pt-10 pb-8">
@@ -825,9 +837,21 @@ export default function Home() {
                               </span>
                             </div>
                           </div>
-                          <span className="inline-flex items-center text-xs font-medium bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full tabular-nums whitespace-nowrap mt-0.5">
-                            {Math.round(paper.score * 100)}%
-                          </span>
+                          <div className="flex flex-col items-end gap-2 mt-0.5">
+                            <span className="inline-flex items-center text-xs font-medium bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full tabular-nums whitespace-nowrap">
+                              {Math.round(paper.score * 100)}%
+                            </span>
+                            <button
+                              onClick={() => setViewingPaper(paper)}
+                              className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium whitespace-nowrap opacity-60 group-hover:opacity-100"
+                            >
+                              View
+                              <svg className="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+                                <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41ZM14 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -875,12 +899,51 @@ export default function Home() {
         {/* Footer */}
         <footer className="py-8 mt-8 border-t border-slate-200 text-center">
           <p className="text-xs text-slate-400">
-            Powered by <span className="font-medium text-slate-500">Milvus</span> vector database
+            Powered by <span className="font-medium text-slate-500">Milvus 2.6</span> vector database
             &nbsp;&middot;&nbsp;
             <span className="font-medium text-slate-500">OpenAI</span> text-embedding-3-small
           </p>
+          <p className="text-[10px] text-slate-300 mt-1">
+            Semantic search &middot; Full text search (BM25) &middot; Decay ranker &middot; Boost ranker &middot; Lexical highlighting
+          </p>
         </footer>
       </div>
+
+      {/* Paper Viewer Pane */}
+      {viewingPaper && (
+        <div className="fixed top-0 right-0 w-[50vw] h-screen bg-white border-l border-slate-200 z-50 flex flex-col shadow-2xl animate-slide-in-right">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50 flex-shrink-0">
+            <div className="min-w-0 flex-1 mr-4">
+              <h3 className="font-medium text-slate-800 text-sm truncate">{viewingPaper.title}</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Semantic Reader</p>
+            </div>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <a
+                href={getReaderUrl(viewingPaper.url)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Open in new tab
+              </a>
+              <button
+                onClick={() => setViewingPaper(null)}
+                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600"
+              >
+                <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <iframe
+            src={getReaderUrl(viewingPaper.url)}
+            className="flex-1 w-full border-0"
+            title={`Reading: ${viewingPaper.title}`}
+            allow="fullscreen"
+          />
+        </div>
+      )}
     </div>
   );
 }
