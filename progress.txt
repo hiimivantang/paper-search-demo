@@ -10,6 +10,13 @@
 - Hybrid search uses `AnnSearchRequest` + `client.hybrid_search()` with `RRFRanker()` for fusing dense+sparse results
 - `search_mode` parameter in request body controls search mode: 'semantic', 'keyword', 'hybrid'
 - Backward compat: when `search_mode` is not set, infer from `highlight_mode` (lexical → keyword, else → semantic)
+- Boost Ranker (v2.6) uses `use_boost_ranker` param — adds FunctionScore boost for semantic/keyword, post-processing for hybrid
+- `hybrid_search()` only supports RRFRanker/WeightedRanker — for custom boosting in hybrid mode, apply post-processing on results
+- Autocomplete min char length is in TWO places: `api/autocomplete.py` (backend) and `app/page.tsx` (frontend) — update both when changing
+- Layout uses `max-w-6xl` container with `flex flex-col md:flex-row` for two-column layout (sidebar + main)
+- Sidebar is `w-full md:w-64` — collapses to full-width horizontal section on mobile (<768px)
+- Theme colors: white bg, slate-700 (#334155) text, blue-600 (#2563EB) primary, slate-200 (#E2E8F0) borders
+- Removed: gradient-text class, dark header gradient, glassmorphism/backdrop-blur effects on search input
 
 ---
 
@@ -32,4 +39,35 @@
   - For BM25 sparse AnnSearchRequest, pass raw text string in data list (not embeddings) and `param={"metric_type": "BM25"}`
   - Existing FunctionScore rankers (time_decay, boost) work with `client.search()` but are NOT passed to `hybrid_search()` — hybrid uses RRFRanker separately
   - The `search_mode` parameter is separate from `highlight_mode` — they are orthogonal concerns
+---
+
+## 2026-02-12 - US-003
+- What was implemented: Added Boost Ranker integration to `api/search.py` with `use_boost_ranker` request parameter. Recency boost (1.3x) for year >= 2022, citation boost (1.2x) for citationcount >= 500.
+- Files changed: `api/search.py` (modified)
+- **Learnings for future iterations:**
+  - For `semantic` and `keyword` modes, Boost Ranker adds `Function` objects with `FunctionType.RERANK` and `"reranker": "boost"` to the `FunctionScore` — same pattern as existing `use_boost`
+  - For `hybrid` mode, `hybrid_search()` only accepts `RRFRanker`/`WeightedRanker`, so boost is applied as post-processing: multiply scores by boost weights then re-sort
+  - The boost weights (1.3 for recency, 1.2 for citations) are multiplicative — a paper matching both gets 1.3 * 1.2 = 1.56x boost
+  - `use_boost_ranker` is independent from the existing `use_boost` — they can be used together
+---
+
+## 2026-02-12 - US-004
+- What was implemented: Updated autocomplete to leverage NGRAM index — reduced minimum character threshold from 4 to 2 in both backend (`api/autocomplete.py`) and frontend (`app/page.tsx`). Added docstring explaining NGRAM index fallback behavior.
+- Files changed: `api/autocomplete.py` (modified), `app/page.tsx` (modified)
+- **Learnings for future iterations:**
+  - NGRAM index accelerates existing `LIKE "%query%"` queries transparently — no query pattern change needed
+  - The minimum character check exists in two places: backend handler and frontend useEffect — both must be updated in sync
+  - The LIKE query works with or without the NGRAM index; the index just makes it faster (graceful fallback)
+---
+
+## 2026-02-12 - US-005
+- What was implemented: Redesigned base theme and layout shell — replaced dark header gradient with clean white background, updated globals.css with light theme colors (white bg, slate-700 text, blue-600 primary, slate-200 borders), set up two-column layout (narrow sidebar + main content area) using flex with mobile-responsive collapse, updated typography hierarchy (600 headings, 500 labels, 400 body), removed gradient-text/glassmorphism effects
+- Files changed: `app/globals.css` (modified), `app/page.tsx` (modified)
+- **Learnings for future iterations:**
+  - Two-column layout uses `flex flex-col md:flex-row` with sidebar as `w-full md:w-64 flex-shrink-0` — collapses to horizontal on mobile
+  - Container widened from `max-w-3xl` to `max-w-6xl` to accommodate sidebar + main content
+  - Header is now separate from the layout body — sits above the two-column area with `border-b border-slate-200`
+  - Search options panel moved into the sidebar `<aside>` element — will be replaced by settings popover in US-008
+  - Removed `gradient-text` CSS class and `backdrop-blur-card` — no longer needed with light theme
+  - The empty state icon now uses `bg-blue-50` instead of gradient background
 ---

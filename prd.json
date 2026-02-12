@@ -52,7 +52,7 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Boost Ranker is new in Milvus v2.6.6. Check pymilvus docs for the exact API (BoostRanker or similar). If the Boost Ranker API is not available in the installed pymilvus version, implement equivalent logic using FunctionScore with boost conditions. Existing rankers use FunctionType.RERANK."
     },
     {
@@ -67,7 +67,7 @@
         "Typecheck passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "Depends on US-001 (setup script must have added NGRAM index). The current autocomplete uses a LIKE filter with SQL wildcards. NGRAM index should make the same LIKE queries faster without changing the query pattern."
     },
     {
@@ -87,7 +87,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "This is the foundation for all subsequent UI stories. Only change the shell/scaffolding and globals.css — individual components (search bar, cards, etc.) will be updated in later stories. The page.tsx will need structural changes for the two-column layout."
     },
     {
