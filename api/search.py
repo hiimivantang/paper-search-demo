@@ -65,6 +65,7 @@ def search_papers(request_data: dict) -> dict:
     use_boost = request_data.get('use_boost', False)
     use_boost_ranker = request_data.get('use_boost_ranker', False)
     highlight_mode = request_data.get('highlight_mode', 'none')
+    filter_expr = request_data.get('filter', '')
     time_decay_params = request_data.get('time_decay_params') or {}
     boost_params = request_data.get('boost_params') or {}
 
@@ -192,6 +193,9 @@ def search_papers(request_data: dict) -> dict:
             'output_fields': output_fields,
         }
 
+        if filter_expr:
+            hybrid_kwargs['filter'] = filter_expr
+
         result = client.hybrid_search(COLLECTION_NAME, **hybrid_kwargs)
 
         # hybrid_search only supports RRFRanker/WeightedRanker, so apply
@@ -219,6 +223,9 @@ def search_papers(request_data: dict) -> dict:
             'limit': limit,
         }
 
+        if filter_expr:
+            search_kwargs['filter'] = filter_expr
+
         if highlight_mode == 'lexical':
             search_kwargs['highlighter'] = LexicalHighlighter(
                 pre_tags=["<mark class='lexical'>"],
@@ -242,6 +249,9 @@ def search_papers(request_data: dict) -> dict:
             'anns_field': 'vector',
             'limit': limit,
         }
+
+        if filter_expr:
+            search_kwargs['filter'] = filter_expr
 
         if ranker:
             search_kwargs['ranker'] = ranker

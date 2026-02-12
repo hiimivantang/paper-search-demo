@@ -123,6 +123,11 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
+  // Filters
+  const [yearMin, setYearMin] = useState<string>('');
+  const [yearMax, setYearMax] = useState<string>('');
+  const [citationMin, setCitationMin] = useState<string>('');
+
   // Autocomplete
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -175,6 +180,15 @@ export default function Home() {
   const [decay, setDecay] = useState(0.8);
   const [scale, setScale] = useState(8);
 
+  // Build Milvus filter expression from filter state
+  const buildFilterExpr = useCallback(() => {
+    const parts: string[] = [];
+    if (yearMin) parts.push(`year >= ${yearMin}`);
+    if (yearMax) parts.push(`year <= ${yearMax}`);
+    if (citationMin) parts.push(`citationcount >= ${citationMin}`);
+    return parts.join(' and ');
+  }, [yearMin, yearMax, citationMin]);
+
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
 
@@ -182,6 +196,7 @@ export default function Home() {
     setError(null);
 
     try {
+      const filterExpr = buildFilterExpr();
       const response = await fetch('/api/search', {
         method: 'POST',
         headers: {
@@ -195,6 +210,7 @@ export default function Home() {
           use_boost: useBoost,
           use_boost_ranker: useBoostRanker,
           highlight_mode: highlightMode,
+          filter: filterExpr || undefined,
           time_decay_params: useTimeDecay ? { origin, offset, decay, scale } : undefined,
         }),
       });
@@ -211,7 +227,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [query, limit, searchMode, useTimeDecay, useBoost, useBoostRanker, highlightMode, origin, offset, decay, scale]);
+  }, [query, limit, searchMode, useTimeDecay, useBoost, useBoostRanker, highlightMode, origin, offset, decay, scale, buildFilterExpr]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (showSuggestions && suggestions.length > 0) {
@@ -256,6 +272,20 @@ export default function Home() {
       prevSearchModeRef.current = searchMode;
     }
   }, [searchMode, query, handleSearch]);
+
+  // Re-execute search when filters change via chip removal (if a query exists and results are showing)
+  const filterExpr = buildFilterExpr();
+  const prevFilterRef = useRef(filterExpr);
+  const hasResultsRef = useRef(false);
+  hasResultsRef.current = results !== null;
+  useEffect(() => {
+    if (prevFilterRef.current !== filterExpr && query.trim() && hasResultsRef.current) {
+      prevFilterRef.current = filterExpr;
+      handleSearch();
+    } else {
+      prevFilterRef.current = filterExpr;
+    }
+  }, [filterExpr, query, handleSearch]);
 
   // Build active settings summary
   const settingsSummary: string[] = [];
@@ -546,8 +576,103 @@ export default function Home() {
       </div>
 
       {/* Main content */}
-      <div className="max-w-4xl mx-auto px-4 py-6">
-          <main>
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="flex flex-col md:flex-row gap-6">
+          {/* Filter Sidebar */}
+          <aside className="w-full md:w-64 flex-shrink-0">
+            <div className="bg-gray-50 rounded-lg p-4 space-y-5">
+              <h3 className="text-sm font-semibold text-slate-700">Filters</h3>
+
+              {/* Year Range */}
+              <div>
+                <label className="text-xs font-semibold text-slate-600 mb-2 block">Year Range</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={yearMin}
+                    onChange={(e) => setYearMin(e.target.value)}
+                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
+                  />
+                  <span className="text-slate-400 text-xs">to</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={yearMax}
+                    onChange={(e) => setYearMax(e.target.value)}
+                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
+                  />
+                </div>
+              </div>
+
+              {/* Citation Count */}
+              <div>
+                <label className="text-xs font-semibold text-slate-600 mb-2 block">Citation Count</label>
+                <div className="space-y-1">
+                  {[
+                    { label: 'Any', value: '' },
+                    { label: '10+', value: '10' },
+                    { label: '100+', value: '100' },
+                    { label: '500+', value: '500' },
+                    { label: '1000+', value: '1000' },
+                  ].map(({ label, value }) => (
+                    <label key={value} className="flex items-center gap-2 cursor-pointer p-1.5 rounded-md hover:bg-slate-100 -mx-1">
+                      <input
+                        type="radio"
+                        name="citationMin"
+                        checked={citationMin === value}
+                        onChange={() => setCitationMin(value)}
+                        className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-slate-700">{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Apply Filters Button */}
+              <button
+                onClick={() => { if (query.trim()) handleSearch(); }}
+                className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
+                disabled={!query.trim()}
+              >
+                Apply Filters
+              </button>
+            </div>
+          </aside>
+
+          {/* Main results area */}
+          <main className="flex-1 min-w-0">
+            {/* Active Filter Chips */}
+            {(yearMin || yearMax || citationMin) && (
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                {yearMin && (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full">
+                    Year &ge; {yearMin}
+                    <button onClick={() => setYearMin('')} className="ml-0.5 text-blue-400 hover:text-blue-600">&times;</button>
+                  </span>
+                )}
+                {yearMax && (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full">
+                    Year &le; {yearMax}
+                    <button onClick={() => setYearMax('')} className="ml-0.5 text-blue-400 hover:text-blue-600">&times;</button>
+                  </span>
+                )}
+                {citationMin && (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full">
+                    Citations &ge; {citationMin}
+                    <button onClick={() => setCitationMin('')} className="ml-0.5 text-blue-400 hover:text-blue-600">&times;</button>
+                  </span>
+                )}
+                <button
+                  onClick={() => { setYearMin(''); setYearMax(''); setCitationMin(''); }}
+                  className="text-xs text-slate-500 hover:text-slate-700 underline ml-1"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
+
             {/* Error Display */}
             {error && (
               <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
@@ -679,15 +804,16 @@ export default function Home() {
               </div>
             )}
           </main>
+        </div>
 
-          {/* Footer */}
-          <footer className="py-8 mt-8 border-t border-slate-200 text-center">
-            <p className="text-xs text-slate-400">
-              Powered by <span className="font-medium text-slate-500">Milvus</span> vector database
-              &nbsp;&middot;&nbsp;
-              <span className="font-medium text-slate-500">OpenAI</span> text-embedding-3-small
-            </p>
-          </footer>
+        {/* Footer */}
+        <footer className="py-8 mt-8 border-t border-slate-200 text-center">
+          <p className="text-xs text-slate-400">
+            Powered by <span className="font-medium text-slate-500">Milvus</span> vector database
+            &nbsp;&middot;&nbsp;
+            <span className="font-medium text-slate-500">OpenAI</span> text-embedding-3-small
+          </p>
+        </footer>
       </div>
     </div>
   );

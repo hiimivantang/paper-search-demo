@@ -13,7 +13,10 @@
 - Boost Ranker (v2.6) uses `use_boost_ranker` param — adds FunctionScore boost for semantic/keyword, post-processing for hybrid
 - `hybrid_search()` only supports RRFRanker/WeightedRanker — for custom boosting in hybrid mode, apply post-processing on results
 - Autocomplete min char length is in TWO places: `api/autocomplete.py` (backend) and `app/page.tsx` (frontend) — update both when changing
-- Layout: header is `max-w-6xl`, main content is `max-w-4xl` (centered, single column after sidebar removal)
+- Layout: header is `max-w-6xl`, main content is `max-w-6xl` with two-column flex (sidebar + main area)
+- Filter sidebar: left `<aside>` with `w-full md:w-64 flex-shrink-0`, `bg-gray-50 rounded-lg` container
+- Milvus `filter` parameter: pass filter expression string to `client.search()` or `client.hybrid_search()` — works with all search modes
+- Filter chips: use `useEffect` with ref tracking to auto-re-search when filters change (similar to searchMode pattern)
 - Settings popover: gear icon button next to search mode switcher, `settingsRef` + click-outside handler for close-on-blur
 - `useBoostRanker` state sends `use_boost_ranker` param to API — separate from `useBoost` (Citation Boost)
 - Theme colors: white bg, slate-700 (#334155) text, blue-600 (#2563EB) primary, slate-200 (#E2E8F0) borders
@@ -116,4 +119,15 @@
   - Citation count color coding uses `>=` (not `>`) thresholds: emerald-600 for 1000+, blue-600 for 100-999, slate-500 for <100
   - Title is wrapped in an `<a>` tag inside the `<h3>` — keeps heading semantics while making the title clickable
   - The `transition-shadow` utility is more targeted than `transition-all` for card hover effects
+---
+
+## 2026-02-12 - US-010
+- What was implemented: Added faceted filtering sidebar with Year Range (min/max number inputs) and Citation Count (radio buttons: Any, 10+, 100+, 500+, 1000+). Filters construct a Milvus filter expression string (e.g., `year >= 2020 and citationcount >= 100`) sent as `filter` parameter in the API request. Backend passes filter through to all search modes (semantic, keyword, hybrid). Active filters shown as removable chip badges above results with X to remove individual filters and "Clear all" link. Removing a filter chip auto-re-triggers search. Layout widened back to `max-w-6xl` two-column flex (sidebar + main content).
+- Files changed: `api/search.py` (modified — added `filter` parameter passthrough), `app/page.tsx` (modified — added filter state, sidebar UI, chips, two-column layout), `prd.json` (US-010 passes: true)
+- **Learnings for future iterations:**
+  - Milvus `filter` param works with `client.search()`, `client.hybrid_search()` — just pass the expression string directly
+  - For auto-re-search on state change, use `useEffect` + ref to track previous value (same pattern as `searchMode`). Don't call `handleSearch()` directly in onClick since React state updates are batched
+  - `hasResultsRef` pattern avoids putting `results` in the effect dependency array which would cause infinite loops (since handleSearch sets results)
+  - Filter expression is constructed on the frontend as a simple `and`-joined string of Milvus scalar filter conditions
+  - Two-column layout restored: `flex flex-col md:flex-row gap-6` with aside `w-full md:w-64 flex-shrink-0`
 ---

@@ -186,7 +186,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "notes": "Depends on US-005 (layout shell has sidebar area) and US-002 (search endpoint). The Milvus search API accepts a 'filter' parameter for scalar filtering. Construct the filter expression string on the frontend from the UI state, then pass it to the backend. Backend just passes it through to the Milvus search call."
     },
     {
