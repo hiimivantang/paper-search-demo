@@ -14,6 +14,8 @@ if 'MILVUS_URI' in os.environ:
 from openai import OpenAI
 from pymilvus import (
     MilvusClient,
+    AnnSearchRequest,
+    RRFRanker,
     Function,
     FunctionType,
     FunctionScore,
@@ -61,9 +63,20 @@ def search_papers(request_data: dict) -> dict:
     limit = request_data.get('limit', 10)
     use_time_decay = request_data.get('use_time_decay', False)
     use_boost = request_data.get('use_boost', False)
+    use_boost_ranker = request_data.get('use_boost_ranker', False)
     highlight_mode = request_data.get('highlight_mode', 'none')
+    filter_expr = request_data.get('filter', '')
     time_decay_params = request_data.get('time_decay_params') or {}
     boost_params = request_data.get('boost_params') or {}
+
+    # Determine search mode: 'semantic', 'keyword', or 'hybrid' (default)
+    # Backward compat: if search_mode is not set, infer from highlight_mode
+    search_mode = request_data.get('search_mode')
+    if search_mode is None:
+        if highlight_mode == 'lexical':
+            search_mode = 'keyword'
+        else:
+            search_mode = 'semantic'
 
     client = get_milvus_client()
     output_fields = ['corpusid', 'title', 'year', 'citationcount', 'url']
@@ -129,27 +142,106 @@ def search_papers(request_data: dict) -> dict:
             }
         ))
 
-    # Build search kwargs based on highlight mode
-    if highlight_mode == "lexical":
-        highlighter = LexicalHighlighter(
-            pre_tags=["<mark class='lexical'>"],
-            post_tags=["</mark>"],
-            fragment_offset=100,
-            fragment_size=1000,
-            highlight_search_text=True
+    # Boost Ranker (v2.6): recency boost for year >= 2022, citation boost for citationcount >= 500
+    if use_boost_ranker:
+        functions.append(Function(
+            name="boost_ranker_recency",
+            input_field_names=[],
+            function_type=FunctionType.RERANK,
+            params={
+                "reranker": "boost",
+                "filter": "year >= 2022",
+                "weight": 1.3
+            }
+        ))
+        functions.append(Function(
+            name="boost_ranker_citations",
+            input_field_names=[],
+            function_type=FunctionType.RERANK,
+            params={
+                "reranker": "boost",
+                "filter": "citationcount >= 500",
+                "weight": 1.2
+            }
+        ))
+
+    ranker = None
+    if functions:
+        ranker = FunctionScore(functions=functions)
+
+    if search_mode == 'hybrid':
+        # Hybrid search: combine dense vector + BM25 sparse using RRFRanker
+        embeddings = get_embeddings(query)
+
+        dense_req = AnnSearchRequest(
+            data=embeddings,
+            anns_field='vector',
+            param={},
+            limit=limit,
+        )
+        sparse_req = AnnSearchRequest(
+            data=[query],
+            anns_field='title_sparse',
+            param={"metric_type": "BM25"},
+            limit=limit,
         )
 
-        search_kwargs = {
+        hybrid_kwargs: dict = {
+            'reqs': [dense_req, sparse_req],
+            'ranker': RRFRanker(),
+            'limit': limit,
+            'output_fields': output_fields,
+        }
+
+        if filter_expr:
+            hybrid_kwargs['filter'] = filter_expr
+
+        result = client.hybrid_search(COLLECTION_NAME, **hybrid_kwargs)
+
+        # hybrid_search only supports RRFRanker/WeightedRanker, so apply
+        # FunctionScore-style boost as post-processing on scores
+        if use_boost_ranker and result and result[0]:
+            for hit in result[0]:
+                entity = hit.get('entity', hit)
+                year = entity.get('year', 0)
+                citations = entity.get('citationcount', 0)
+                multiplier = 1.0
+                if year >= 2022:
+                    multiplier *= 1.3
+                if citations >= 500:
+                    multiplier *= 1.2
+                hit['score'] = hit.get('score', hit.get('distance', 0)) * multiplier
+            result[0] = sorted(result[0], key=lambda h: h.get('score', 0), reverse=True)
+
+    elif search_mode == 'keyword':
+        # BM25 lexical search on title_sparse field
+        search_kwargs: dict = {
             'data': [query],
             'output_fields': output_fields,
             'anns_field': 'title_sparse',
             'search_params': {"metric_type": "BM25"},
             'limit': limit,
-            'highlighter': highlighter,
         }
+
+        if filter_expr:
+            search_kwargs['filter'] = filter_expr
+
+        if highlight_mode == 'lexical':
+            search_kwargs['highlighter'] = LexicalHighlighter(
+                pre_tags=["<mark class='lexical'>"],
+                post_tags=["</mark>"],
+                fragment_offset=100,
+                fragment_size=1000,
+                highlight_search_text=True
+            )
+
+        if ranker:
+            search_kwargs['ranker'] = ranker
+
+        result = client.search(COLLECTION_NAME, **search_kwargs)
+
     else:
-        # Dense vector search (for 'none' or 'semantic' modes)
-        # Note: Semantic highlighting is disabled - using client-side fallback
+        # Semantic (dense vector) search
         embeddings = get_embeddings(query)
         search_kwargs = {
             'data': embeddings,
@@ -158,11 +250,13 @@ def search_papers(request_data: dict) -> dict:
             'limit': limit,
         }
 
-    if functions:
-        combined_ranker = FunctionScore(functions=functions)
-        search_kwargs['ranker'] = combined_ranker
+        if filter_expr:
+            search_kwargs['filter'] = filter_expr
 
-    result = client.search(COLLECTION_NAME, **search_kwargs)
+        if ranker:
+            search_kwargs['ranker'] = ranker
+
+        result = client.search(COLLECTION_NAME, **search_kwargs)
 
     # Format results
     papers = []
@@ -193,7 +287,9 @@ def search_papers(request_data: dict) -> dict:
         'options': {
             'use_time_decay': use_time_decay,
             'use_boost': use_boost,
+            'use_boost_ranker': use_boost_ranker,
             'highlight_mode': highlight_mode,
+            'search_mode': search_mode,
             'limit': limit,
         }
     }
