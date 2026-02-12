@@ -14,6 +14,8 @@ if 'MILVUS_URI' in os.environ:
 from openai import OpenAI
 from pymilvus import (
     MilvusClient,
+    AnnSearchRequest,
+    RRFRanker,
     Function,
     FunctionType,
     FunctionScore,
@@ -64,6 +66,15 @@ def search_papers(request_data: dict) -> dict:
     highlight_mode = request_data.get('highlight_mode', 'none')
     time_decay_params = request_data.get('time_decay_params') or {}
     boost_params = request_data.get('boost_params') or {}
+
+    # Determine search mode: 'semantic', 'keyword', or 'hybrid' (default)
+    # Backward compat: if search_mode is not set, infer from highlight_mode
+    search_mode = request_data.get('search_mode')
+    if search_mode is None:
+        if highlight_mode == 'lexical':
+            search_mode = 'keyword'
+        else:
+            search_mode = 'semantic'
 
     client = get_milvus_client()
     output_fields = ['corpusid', 'title', 'year', 'citationcount', 'url']
@@ -129,27 +140,62 @@ def search_papers(request_data: dict) -> dict:
             }
         ))
 
-    # Build search kwargs based on highlight mode
-    if highlight_mode == "lexical":
-        highlighter = LexicalHighlighter(
-            pre_tags=["<mark class='lexical'>"],
-            post_tags=["</mark>"],
-            fragment_offset=100,
-            fragment_size=1000,
-            highlight_search_text=True
+    ranker = None
+    if functions:
+        ranker = FunctionScore(functions=functions)
+
+    if search_mode == 'hybrid':
+        # Hybrid search: combine dense vector + BM25 sparse using RRFRanker
+        embeddings = get_embeddings(query)
+
+        dense_req = AnnSearchRequest(
+            data=embeddings,
+            anns_field='vector',
+            param={},
+            limit=limit,
+        )
+        sparse_req = AnnSearchRequest(
+            data=[query],
+            anns_field='title_sparse',
+            param={"metric_type": "BM25"},
+            limit=limit,
         )
 
-        search_kwargs = {
+        hybrid_kwargs: dict = {
+            'reqs': [dense_req, sparse_req],
+            'ranker': RRFRanker(),
+            'limit': limit,
+            'output_fields': output_fields,
+        }
+
+        result = client.hybrid_search(COLLECTION_NAME, **hybrid_kwargs)
+
+    elif search_mode == 'keyword':
+        # BM25 lexical search on title_sparse field
+        search_kwargs: dict = {
             'data': [query],
             'output_fields': output_fields,
             'anns_field': 'title_sparse',
             'search_params': {"metric_type": "BM25"},
             'limit': limit,
-            'highlighter': highlighter,
         }
+
+        if highlight_mode == 'lexical':
+            search_kwargs['highlighter'] = LexicalHighlighter(
+                pre_tags=["<mark class='lexical'>"],
+                post_tags=["</mark>"],
+                fragment_offset=100,
+                fragment_size=1000,
+                highlight_search_text=True
+            )
+
+        if ranker:
+            search_kwargs['ranker'] = ranker
+
+        result = client.search(COLLECTION_NAME, **search_kwargs)
+
     else:
-        # Dense vector search (for 'none' or 'semantic' modes)
-        # Note: Semantic highlighting is disabled - using client-side fallback
+        # Semantic (dense vector) search
         embeddings = get_embeddings(query)
         search_kwargs = {
             'data': embeddings,
@@ -158,11 +204,10 @@ def search_papers(request_data: dict) -> dict:
             'limit': limit,
         }
 
-    if functions:
-        combined_ranker = FunctionScore(functions=functions)
-        search_kwargs['ranker'] = combined_ranker
+        if ranker:
+            search_kwargs['ranker'] = ranker
 
-    result = client.search(COLLECTION_NAME, **search_kwargs)
+        result = client.search(COLLECTION_NAME, **search_kwargs)
 
     # Format results
     papers = []
@@ -194,6 +239,7 @@ def search_papers(request_data: dict) -> dict:
             'use_time_decay': use_time_decay,
             'use_boost': use_boost,
             'highlight_mode': highlight_mode,
+            'search_mode': search_mode,
             'limit': limit,
         }
     }

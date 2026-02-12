@@ -1,0 +1,35 @@
+## Codebase Patterns
+- Collection name is `semantic_scholar_papers` — used across all api/ files and scripts
+- Python API functions use lazy-loaded singleton MilvusClient with `MILVUS_URI` and `MILVUS_TOKEN` env vars
+- MILVUS_URI env var needs `.strip()` due to whitespace issues in Vercel
+- Vercel serverless functions use `BaseHTTPRequestHandler` pattern in `api/` directory
+- Frontend is a single `app/page.tsx` client component with React hooks for all state
+- Existing fields: vector (dense), title_sparse (sparse/BM25), title (varchar), year (int), citationcount (int), corpusid (int), url (varchar)
+- pymilvus MilvusClient.list_indexes(collection_name, field_name=) returns list of index name strings
+- pymilvus MilvusClient.prepare_index_params() + add_index() + create_index() for creating indexes
+- Hybrid search uses `AnnSearchRequest` + `client.hybrid_search()` with `RRFRanker()` for fusing dense+sparse results
+- `search_mode` parameter in request body controls search mode: 'semantic', 'keyword', 'hybrid'
+- Backward compat: when `search_mode` is not set, infer from `highlight_mode` (lexical → keyword, else → semantic)
+
+---
+
+## 2026-02-12 - US-001
+- What was implemented: Created `scripts/setup_indexes.py` — an idempotent Python script that adds an NGRAM index on the `title` field with min_gram=2, max_gram=3
+- Files changed: `scripts/setup_indexes.py` (new)
+- **Learnings for future iterations:**
+  - NGRAM index creation uses `prepare_index_params()` → `add_index(field_name, index_type="NGRAM", index_name, min_gram, max_gram)` → `create_index(collection_name, index_params)`
+  - Use `list_indexes(collection_name, field_name="title")` to check if index already exists before creating
+  - The NGRAM index enables fast LIKE substring matching — the existing autocomplete query pattern (`LIKE "%query%"`) works as-is, just faster
+  - min_gram=2 means autocomplete can trigger at 2 chars (used in US-004)
+---
+
+## 2026-02-12 - US-002
+- What was implemented: Added hybrid search mode to `api/search.py` using pymilvus `hybrid_search()` with `AnnSearchRequest` and `RRFRanker`
+- Files changed: `api/search.py` (modified), `api/requirements.txt` (bumped pymilvus to >=2.6.0)
+- **Learnings for future iterations:**
+  - `AnnSearchRequest` takes `data`, `anns_field`, `param` (dict with metric_type for sparse), and `limit`
+  - `client.hybrid_search()` takes `reqs` (list of AnnSearchRequest), `ranker` (RRFRanker), `limit`, `output_fields`
+  - For BM25 sparse AnnSearchRequest, pass raw text string in data list (not embeddings) and `param={"metric_type": "BM25"}`
+  - Existing FunctionScore rankers (time_decay, boost) work with `client.search()` but are NOT passed to `hybrid_search()` — hybrid uses RRFRanker separately
+  - The `search_mode` parameter is separate from `highlight_mode` — they are orthogonal concerns
+---
