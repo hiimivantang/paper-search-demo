@@ -614,25 +614,24 @@ export default function Home() {
                     {results.papers.map((paper, idx) => (
                       <div
                         key={paper.id || `${paper.corpusid}-${idx}`}
-                        className="animate-slide-up bg-white rounded-lg border border-slate-200 p-5 hover:border-slate-300 hover:shadow-md group"
+                        className="animate-slide-up bg-white rounded-lg border border-slate-200 shadow-sm p-5 hover:shadow-md transition-shadow duration-200 group"
                         style={{ animationDelay: `${idx * 50}ms` }}
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-xs text-slate-400 font-mono tabular-nums">
-                                #{idx + 1}
-                              </span>
-                              <span className="text-[11px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md font-mono tabular-nums">
-                                {paper.score.toFixed(4)}
-                              </span>
-                            </div>
                             <h3 className="font-medium text-slate-800 leading-snug mb-2.5 group-hover:text-blue-700">
-                              {paper.highlighted_title ? (
-                                <span dangerouslySetInnerHTML={{ __html: paper.highlighted_title }} />
-                              ) : (
-                                highlightText(paper.title, results.query, highlightMode)
-                              )}
+                              <a
+                                href={paper.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:underline"
+                              >
+                                {paper.highlighted_title ? (
+                                  <span dangerouslySetInnerHTML={{ __html: paper.highlighted_title }} />
+                                ) : (
+                                  highlightText(paper.title, results.query, highlightMode)
+                                )}
+                              </a>
                             </h3>
                             <div className="flex flex-wrap items-center gap-3 text-sm">
                               <span className="inline-flex items-center gap-1.5 text-slate-500">
@@ -642,9 +641,9 @@ export default function Home() {
                                 {paper.year}
                               </span>
                               <span className={`inline-flex items-center gap-1.5 font-medium ${
-                                paper.citationcount > 1000
+                                paper.citationcount >= 1000
                                   ? 'text-emerald-600'
-                                  : paper.citationcount > 100
+                                  : paper.citationcount >= 100
                                   ? 'text-blue-600'
                                   : 'text-slate-500'
                               }`}>
@@ -656,17 +655,9 @@ export default function Home() {
                               </span>
                             </div>
                           </div>
-                          <a
-                            href={paper.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium whitespace-nowrap opacity-60 group-hover:opacity-100 mt-1"
-                          >
-                            View
-                            <svg className="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M4.25 5.5a.75.75 0 00-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 00.75-.75v-4a.75.75 0 011.5 0v4A2.25 2.25 0 0112.75 17h-8.5A2.25 2.25 0 012 14.75v-8.5A2.25 2.25 0 014.25 4h5a.75.75 0 010 1.5h-5zm7.25-.75a.75.75 0 01.75-.75h3.5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0V6.31l-5.47 5.47a.75.75 0 01-1.06-1.06l5.47-5.47H12.25a.75.75 0 01-.75-.75z" clipRule="evenodd" />
-                            </svg>
-                          </a>
+                          <span className="inline-flex items-center text-xs font-medium bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full tabular-nums whitespace-nowrap mt-0.5">
+                            {Math.round(paper.score * 100)}%
+                          </span>
                         </div>
                       </div>
                     ))}

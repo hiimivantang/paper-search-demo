@@ -13,8 +13,9 @@
 - Boost Ranker (v2.6) uses `use_boost_ranker` param — adds FunctionScore boost for semantic/keyword, post-processing for hybrid
 - `hybrid_search()` only supports RRFRanker/WeightedRanker — for custom boosting in hybrid mode, apply post-processing on results
 - Autocomplete min char length is in TWO places: `api/autocomplete.py` (backend) and `app/page.tsx` (frontend) — update both when changing
-- Layout uses `max-w-6xl` container with `flex flex-col md:flex-row` for two-column layout (sidebar + main)
-- Sidebar is `w-full md:w-64` — collapses to full-width horizontal section on mobile (<768px)
+- Layout: header is `max-w-6xl`, main content is `max-w-4xl` (centered, single column after sidebar removal)
+- Settings popover: gear icon button next to search mode switcher, `settingsRef` + click-outside handler for close-on-blur
+- `useBoostRanker` state sends `use_boost_ranker` param to API — separate from `useBoost` (Citation Boost)
 - Theme colors: white bg, slate-700 (#334155) text, blue-600 (#2563EB) primary, slate-200 (#E2E8F0) borders
 - Removed: gradient-text class, dark header gradient, glassmorphism/backdrop-blur effects on search input
 - Search mode switcher: `searchMode` state (`SearchMode` type) with `handleSearchModeChange` callback + useEffect for auto-re-search on mode change
@@ -93,4 +94,26 @@
   - Mode switcher uses `inline-flex` container with `bg-slate-100 rounded-lg p-1` — active mode gets `bg-blue-600 text-white`, inactive gets transparent with `text-slate-600`
   - Each mode button shows a subtitle (`text-[10px]`) that changes color based on active state (blue-100 when active, slate-400 when inactive)
   - `handleSearch` dependency array must include `searchMode` since the request body now includes `search_mode`
+---
+
+## 2026-02-12 - US-008
+- What was implemented: Refactored sidebar options panel into a settings popover. Replaced the `<aside>` sidebar with a gear icon button next to the search mode switcher. Clicking opens a popover with ranker toggles (Time Decay, Citation Boost, Boost Ranker v2.6), highlighting mode (Off / Keyword Highlights), result limit dropdown (5–50), and advanced time decay settings. Added `useBoostRanker` state that sends `use_boost_ranker=true` to the API. Popover closes on click outside. Below the search bar, a summary line shows active settings (e.g., "10 results · Boost Ranker · Keyword highlights"). Layout simplified from two-column to single-column `max-w-4xl`.
+- Files changed: `app/page.tsx` (modified)
+- **Learnings for future iterations:**
+  - Click-outside handler pattern: `useRef` on popover container + `mousedown` listener added/removed based on `showSettings` state
+  - Settings popover is positioned `absolute right-0 top-full mt-2` relative to the gear button — `z-30` ensures it's above autocomplete (`z-20`)
+  - Summary line is always visible (not conditional) — shows at minimum "10 results" even with no active options
+  - Removed `showOptions` state (sidebar toggle) and `activeOptionsCount`, replaced with `showSettings` and `settingsSummary` array
+  - `useBoostRanker` is independent from `useBoost` — they can be combined. Backend already handles both.
+  - The sidebar removal means US-010 (faceted filtering) will need to put filters somewhere else — consider bringing back sidebar or using another approach
+---
+
+## 2026-02-12 - US-009
+- What was implemented: Redesigned result cards with richer metadata. Title is now a clickable link that opens the Semantic Scholar URL in a new tab. Score displayed as a percentage badge (rounded-full pill). Card has shadow-sm by default with shadow-md on hover (200ms transition). Citation count thresholds changed from `>` to `>=` for 1000 and 100. Removed the separate "View" link and the `#idx` / raw score header row — replaced with cleaner title-first layout with percentage badge on the right. Staggered slideUp animation preserved (50ms delay between cards).
+- Files changed: `app/page.tsx` (modified)
+- **Learnings for future iterations:**
+  - Score is a float 0-1 from Milvus — multiply by 100 and round for percentage display
+  - Citation count color coding uses `>=` (not `>`) thresholds: emerald-600 for 1000+, blue-600 for 100-999, slate-500 for <100
+  - Title is wrapped in an `<a>` tag inside the `<h3>` — keeps heading semantics while making the title clickable
+  - The `transition-shadow` utility is more targeted than `transition-all` for card hover effects
 ---

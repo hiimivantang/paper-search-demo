@@ -144,7 +144,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "notes": "Depends on US-003 (Boost Ranker backend) and US-006 (header redesign). Move existing option state variables (useTimeDecay, useCitationBoost, highlightMode, limit) into the new popover. Add new useBoostRanker state. Preserve existing advanced settings (time decay params) inside the popover."
     },
     {
@@ -165,7 +165,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "notes": "Depends on US-005 (base theme). Redesign the existing result card markup in page.tsx. Keep all existing data fields and logic — only change the visual presentation. The existing score is a float 0-1; multiply by 100 for percentage display."
     },
     {
