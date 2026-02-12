@@ -26,6 +26,12 @@ def get_milvus_client():
 
 
 def autocomplete(substring: str, limit: int = 5) -> list:
+    """Autocomplete using LIKE query on title field.
+
+    When the NGRAM index (added by scripts/setup_indexes.py) is present,
+    the LIKE query is accelerated automatically by Milvus. If the NGRAM
+    index is not available, this falls back to the standard LIKE scan.
+    """
     client = get_milvus_client()
     # Escape any percent/underscore characters in user input
     safe = substring.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
@@ -48,7 +54,8 @@ class handler(BaseHTTPRequestHandler):
             substring = request_data.get('query', '').strip()
             limit = request_data.get('limit', 5)
 
-            if not substring or len(substring) < 4:
+            # Minimum 2 chars — matches NGRAM index min_gram=2 from setup_indexes.py
+            if not substring or len(substring) < 2:
                 titles = []
             else:
                 titles = autocomplete(substring, limit)

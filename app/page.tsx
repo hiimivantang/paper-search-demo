@@ -125,7 +125,7 @@ export default function Home() {
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (query.trim().length < 4) {
+    if (query.trim().length < 2) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
