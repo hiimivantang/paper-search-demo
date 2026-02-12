@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "88ad9c9bef16",
+  "session_id": "a011613d-418c-4d3a-ba47-74d210bc37db",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-12T01:51:32.116226Z",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "api/search.py",
+    "app/globals.css",
+    "app/page.tsx",
+    "backend/main.py"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 41,
+    "cache_creation_tokens": 75945,
+    "cache_read_tokens": 2505001,
+    "output_tokens": 3461,
+    "api_call_count": 40
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-12T01:51:32.037058Z",
+    "agent_lines": 105,
+    "human_added": 11,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 116,
+    "agent_percentage": 90.51724137931035
+  }
+}
