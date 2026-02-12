@@ -128,6 +128,9 @@ export default function Home() {
   const [yearMax, setYearMax] = useState<string>('');
   const [citationMin, setCitationMin] = useState<string>('');
 
+  // Suggested query trigger
+  const pendingSuggestedSearch = useRef(false);
+
   // Autocomplete
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -228,6 +231,14 @@ export default function Home() {
       setLoading(false);
     }
   }, [query, limit, searchMode, useTimeDecay, useBoost, useBoostRanker, highlightMode, origin, offset, decay, scale, buildFilterExpr]);
+
+  // Trigger search after a suggested query is clicked (query state is updated)
+  useEffect(() => {
+    if (pendingSuggestedSearch.current && query.trim()) {
+      pendingSuggestedSearch.current = false;
+      handleSearch();
+    }
+  }, [query, handleSearch]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (showSuggestions && suggestions.length > 0) {
@@ -731,8 +742,10 @@ export default function Home() {
                     <svg className="w-12 h-12 text-slate-300 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                     </svg>
-                    <p className="text-slate-500 font-medium">No papers found</p>
-                    <p className="text-sm text-slate-400 mt-1">Try a different search query</p>
+                    <h3 className="text-slate-400 font-medium mb-1">No results found</h3>
+                    <p className="text-sm text-slate-400 max-w-sm mx-auto">
+                      Try using broader terms, different keywords, or removing some filters
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -795,12 +808,33 @@ export default function Home() {
             {!loading && !results && !error && (
               <div className="text-center py-20">
                 <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-blue-50 flex items-center justify-center">
-                  <SearchIcon className="w-7 h-7 text-blue-600" />
+                  <SearchIcon className="w-7 h-7 text-slate-300" />
                 </div>
-                <p className="text-slate-500 font-medium">Enter a query to search academic papers</p>
-                <p className="text-sm text-slate-400 mt-1.5">
-                  Try &ldquo;deep learning&rdquo;, &ldquo;vehicle automation&rdquo;, or &ldquo;natural language processing&rdquo;
+                <h2 className="text-lg font-semibold text-slate-400 mb-1">Search academic papers</h2>
+                <p className="text-sm text-slate-400 mb-6">
+                  Try one of these queries:
                 </p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {[
+                    'transformer attention mechanisms',
+                    'neural network pruning',
+                    'large language models',
+                    'graph neural networks',
+                    'reinforcement learning robotics',
+                  ].map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      onClick={() => {
+                        pendingSuggestedSearch.current = true;
+                        setQuery(suggestion);
+                        setShowSuggestions(false);
+                      }}
+                      className="px-3.5 py-1.5 text-sm text-blue-600 bg-blue-50 border border-blue-200 rounded-full hover:bg-blue-100 transition-colors duration-200"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </main>

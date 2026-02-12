@@ -23,6 +23,7 @@
 - Removed: gradient-text class, dark header gradient, glassmorphism/backdrop-blur effects on search input
 - Search mode switcher: `searchMode` state (`SearchMode` type) with `handleSearchModeChange` callback + useEffect for auto-re-search on mode change
 - Mode switcher UI is a segmented control (pill toggle) with `bg-slate-100` container + `bg-blue-600` active state, placed between header title and search input
+- To trigger search after setting query from a UI action (e.g., suggested query click), use `pendingSuggestedSearch` ref + `useEffect` on `query` — avoids stale state from batched `setQuery`
 
 ---
 
@@ -130,4 +131,13 @@
   - `hasResultsRef` pattern avoids putting `results` in the effect dependency array which would cause infinite loops (since handleSearch sets results)
   - Filter expression is constructed on the frontend as a simple `and`-joined string of Milvus scalar filter conditions
   - Two-column layout restored: `flex flex-col md:flex-row gap-6` with aside `w-full md:w-64 flex-shrink-0`
+---
+
+## 2026-02-12 - US-011
+- What was implemented: Replaced the pre-search empty state with a centered onboarding experience: large search icon (slate-300), "Search academic papers" heading, "Try one of these queries:" subtitle, and 5 clickable suggested query pills (transformer attention mechanisms, neural network pruning, large language models, graph neural networks, reinforcement learning robotics). Clicking a pill fills the search input and auto-triggers a search. Updated the zero-results empty state with "No results found" heading and helpful suggestion text ("Try using broader terms, different keywords, or removing some filters"). Both empty states use slate-400 text.
+- Files changed: `app/page.tsx` (modified), `prd.json` (US-011 passes: true)
+- **Learnings for future iterations:**
+  - To trigger search after setting query from a button click, use a `pendingSuggestedSearch` ref + `useEffect` on `query` change — can't call `handleSearch()` directly since `setQuery` is batched and `query` won't be updated yet
+  - The suggested query pills use `rounded-full` with `bg-blue-50 border border-blue-200` styling — consistent with filter chip styling
+  - Empty states are vertically centered using `py-20` (pre-search) and `py-16` (zero results) within the `<main>` flex area
 ---
