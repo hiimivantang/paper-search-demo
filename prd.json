@@ -1,0 +1,229 @@
+{
+  "project": "Paper Search Demo",
+  "branchName": "ralph/milvus-v26-paper-search",
+  "description": "Full redesign of Paper Search Demo to showcase Milvus v2.6 features (hybrid search, Boost Ranker, NGRAM index) with a modern minimal light theme, faceted filtering, search mode switcher, and v2.6 feature callouts.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create collection setup script for new indexes",
+      "description": "As a developer, I need an idempotent Python script that adds new indexes (NGRAM on title) to the existing semantic_scholar_papers collection without dropping or modifying anything.",
+      "acceptanceCriteria": [
+        "Create scripts/setup_indexes.py that connects to Milvus using MILVUS_URI and MILVUS_TOKEN env vars",
+        "Script adds NGRAM index on the 'title' field with ngram_size=3 if not already present",
+        "Script does NOT drop or modify existing indexes, fields, or the collection itself",
+        "Script prints confirmation of what was added or skipped",
+        "Script handles 'index already exists' errors gracefully",
+        "Script is idempotent — safe to run multiple times with same result",
+        "Inline comments explain what each index enables",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "This must run before US-004 (NGRAM autocomplete). Use pymilvus>=2.6.0. Existing collection name is 'semantic_scholar_papers'. Fields: vector (dense), title_sparse (sparse/BM25), title (varchar), year (int), citationcount (int), corpusid (int), url (varchar)."
+    },
+    {
+      "id": "US-002",
+      "title": "Implement hybrid search endpoint",
+      "description": "As a user, I want to search using both semantic meaning and exact keywords simultaneously so that I get the most comprehensive results.",
+      "acceptanceCriteria": [
+        "Add a new 'hybrid' search mode to api/search.py that runs dense vector search AND BM25 search in a single Milvus hybrid_search() call",
+        "Use pymilvus AnnSearchRequest for both dense (vector field) and sparse (title_sparse field) retrieval",
+        "Fuse results using RRFRanker from pymilvus",
+        "Return a unified ranked list with the same response format as existing search modes (title, year, citationcount, url, score)",
+        "Existing 'dense' and 'lexical' search modes continue to work unchanged — do not modify their code paths",
+        "The search mode is determined by a 'search_mode' parameter in the request body (values: 'semantic', 'keyword', 'hybrid')",
+        "Default search_mode is 'hybrid' if not specified",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "The existing search.py uses highlight_mode to switch between dense and lexical. Add search_mode as a new parameter. Keep backward compat — if highlight_mode is set but search_mode is not, use existing behavior. Collection fields: 'vector' for dense, 'title_sparse' for BM25."
+    },
+    {
+      "id": "US-003",
+      "title": "Add Boost Ranker for metadata-driven ranking",
+      "description": "As a user, I want search results to be intelligently ranked using paper metadata so that recent, highly-cited papers surface higher.",
+      "acceptanceCriteria": [
+        "Add Boost Ranker integration to api/search.py using Milvus v2.6 Boost Ranker API",
+        "Boost rules: papers with year >= 2022 get a recency boost; papers with citationcount >= 500 get a citation boost",
+        "Boost Ranker is applied when a 'use_boost_ranker' boolean parameter is true in the request body",
+        "Boost Ranker works with all three search modes (semantic, keyword, hybrid)",
+        "Existing Time Decay Ranker and Citation Boosting options remain available and unchanged",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Boost Ranker is new in Milvus v2.6.6. Check pymilvus docs for the exact API (BoostRanker or similar). If the Boost Ranker API is not available in the installed pymilvus version, implement equivalent logic using FunctionScore with boost conditions. Existing rankers use FunctionType.RERANK."
+    },
+    {
+      "id": "US-004",
+      "title": "Update autocomplete to use NGRAM index",
+      "description": "As a user, I want autocomplete suggestions to appear instantly as I type so that I can quickly find papers by partial title matches.",
+      "acceptanceCriteria": [
+        "Update api/autocomplete.py to leverage the NGRAM index for substring matching on the 'title' field",
+        "Autocomplete triggers after 2 characters (update the minimum length check from 4 to 2)",
+        "If NGRAM index is not available, fall back to existing LIKE-based autocomplete behavior",
+        "Response format remains the same (list of title strings)",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Depends on US-001 (setup script must have added NGRAM index). The current autocomplete uses a LIKE filter with SQL wildcards. NGRAM index should make the same LIKE queries faster without changing the query pattern."
+    },
+    {
+      "id": "US-005",
+      "title": "Redesign base theme and layout shell",
+      "description": "As a user, I want a clean, modern light theme that feels professional so that the demo makes a strong impression.",
+      "acceptanceCriteria": [
+        "Replace dark header gradient with clean white (#FFFFFF) background",
+        "Update globals.css: white page background, slate-700 (#334155) text, blue-600 (#2563EB) primary accent, slate-200 (#E2E8F0) borders",
+        "Remove existing dark theme gradient styles and glassmorphism effects",
+        "Set up a two-column layout shell: narrow left sidebar area (for future filters) + main content area, using CSS grid or flex",
+        "Sidebar collapses on mobile (below 768px) to a horizontal section above results",
+        "Typography hierarchy: 600 weight headings, 500 weight labels, 400 weight body text",
+        "Subtle transitions (200ms) on interactive elements",
+        "Keep Geist Sans font family",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "This is the foundation for all subsequent UI stories. Only change the shell/scaffolding and globals.css — individual components (search bar, cards, etc.) will be updated in later stories. The page.tsx will need structural changes for the two-column layout."
+    },
+    {
+      "id": "US-006",
+      "title": "Redesign header and search input",
+      "description": "As a user, I want the search experience to feel fast and polished from the moment I start typing.",
+      "acceptanceCriteria": [
+        "'Paper Search' heading uses clean minimal style — no gradient text, use slate-800 color with font-weight 600",
+        "Subtitle is one line describing the demo (e.g., 'Semantic paper search powered by Milvus v2.6')",
+        "Search input is large and prominent with white background, slate-200 border, rounded-lg (8px)",
+        "Search input has a subtle blue-600 focus ring animation on focus",
+        "Search icon on the left side of input in slate-400 color",
+        "Search button on right with blue-600 background, white text, rounded",
+        "Search triggers on Enter key press or search button click (preserve existing behavior)",
+        "Autocomplete dropdown matches new light theme (white bg, slate-200 border, subtle shadow)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "Depends on US-005 (base theme). Modify the header and search input sections of page.tsx. Keep all existing search logic — only change visual styling and layout."
+    },
+    {
+      "id": "US-007",
+      "title": "Build search mode switcher",
+      "description": "As a user, I want to easily switch between Semantic, Keyword, and Hybrid search modes so that I can choose the best approach for my query.",
+      "acceptanceCriteria": [
+        "Segmented control (pill toggle) with three options: Semantic, Keyword, Hybrid — placed between header and search input",
+        "Hybrid is selected by default",
+        "Active mode has blue-600 background with white text; inactive modes have transparent background with slate-600 text",
+        "Each mode shows a small subtitle below the label: Semantic='Conceptual similarity', Keyword='Exact term matching', Hybrid='Combined search'",
+        "Switching modes updates a searchMode state variable and re-executes the current search if a query exists",
+        "The searchMode value ('semantic', 'keyword', 'hybrid') is sent as 'search_mode' parameter in the API request body",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "Depends on US-002 (hybrid search endpoint) and US-006 (header redesign). The frontend needs to pass search_mode to the backend. For 'keyword' mode, use the existing lexical/BM25 path. For 'semantic', use the existing dense vector path. For 'hybrid', use the new hybrid endpoint."
+    },
+    {
+      "id": "US-008",
+      "title": "Refactor options panel into settings popover",
+      "description": "As a user, I want search options organized in a clean settings panel that doesn't clutter the main interface.",
+      "acceptanceCriteria": [
+        "Replace the existing collapsible options panel with a gear icon button next to the search mode switcher",
+        "Clicking gear icon opens a popover/dropdown panel with a white background, shadow-lg, rounded-lg, and slate-200 border",
+        "Settings panel contains: ranker toggles (Time Decay, Citation Boost, Boost Ranker v2.6), highlighting mode (Off / Keyword Highlights), result limit dropdown (5, 10, 15, 20, 25, 50)",
+        "Boost Ranker toggle is a new option that sends use_boost_ranker=true to the API",
+        "Panel closes when clicking outside of it",
+        "Below the search bar, show a subtle summary line of active settings (e.g., '20 results · Boost Ranker · Keyword highlights')",
+        "Summary line uses slate-500 text, text-sm size",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "Depends on US-003 (Boost Ranker backend) and US-006 (header redesign). Move existing option state variables (useTimeDecay, useCitationBoost, highlightMode, limit) into the new popover. Add new useBoostRanker state. Preserve existing advanced settings (time decay params) inside the popover."
+    },
+    {
+      "id": "US-009",
+      "title": "Redesign result cards with richer metadata",
+      "description": "As a user, I want result cards that display paper information clearly and attractively so that I can quickly assess relevance.",
+      "acceptanceCriteria": [
+        "Each result card has white background, 1px slate-200 border, rounded-lg (8px), subtle shadow (shadow-sm)",
+        "Card shows: paper title (font-weight 500, slate-800), year, citation count, relevance score",
+        "Title supports highlighting markup (preserve existing dangerouslySetInnerHTML for lexical highlights)",
+        "Clicking the title opens the Semantic Scholar URL in a new tab",
+        "Year shown with a calendar icon or plain text in slate-500",
+        "Citation count with color coding: emerald-600 for 1000+, blue-600 for 100-999, slate-500 for <100",
+        "Relevance score displayed as a percentage (e.g., '94%') in a subtle badge or pill",
+        "Hover state: shadow-md transition (200ms ease)",
+        "Cards animate in with a subtle staggered slideUp (50ms delay between cards)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "Depends on US-005 (base theme). Redesign the existing result card markup in page.tsx. Keep all existing data fields and logic — only change the visual presentation. The existing score is a float 0-1; multiply by 100 for percentage display."
+    },
+    {
+      "id": "US-010",
+      "title": "Add faceted filtering sidebar",
+      "description": "As a user, I want to filter results by year range and citation count so that I can narrow down to the most relevant papers.",
+      "acceptanceCriteria": [
+        "Left sidebar contains two filter sections: Year Range and Citation Count",
+        "Year Range: two number inputs (min year, max year) with slate-200 borders and rounded styling",
+        "Citation Count: radio buttons for preset ranges — Any, 10+, 100+, 500+, 1000+",
+        "Filters are sent as a 'filter' string parameter in the API request body using Milvus filter expression syntax (e.g., 'year >= 2020 and year <= 2025 and citationcount >= 100')",
+        "Update api/search.py to accept and apply a 'filter' parameter as a Milvus filter expression in the search call",
+        "Active filters shown as removable chip badges above the results list",
+        "Clicking X on a chip removes that filter and re-executes search",
+        "'Clear all' link appears when any filter is active",
+        "Sidebar uses light gray (#F9FAFB) background, rounded-lg, with section headings in font-weight 600",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": "Depends on US-005 (layout shell has sidebar area) and US-002 (search endpoint). The Milvus search API accepts a 'filter' parameter for scalar filtering. Construct the filter expression string on the frontend from the UI state, then pass it to the backend. Backend just passes it through to the Milvus search call."
+    },
+    {
+      "id": "US-011",
+      "title": "Add empty state and onboarding hints",
+      "description": "As a first-time user, I want helpful guidance when I first land on the page so that I know what to search for.",
+      "acceptanceCriteria": [
+        "Before any search: show a centered empty state in the main content area with a search icon (slate-300, large), a heading 'Search academic papers', and a subtitle 'Try one of these queries:'",
+        "Show 4-5 clickable suggested queries as pill buttons (e.g., 'transformer attention mechanisms', 'neural network pruning', 'large language models', 'graph neural networks')",
+        "Clicking a suggested query fills the search input and triggers a search",
+        "After search with zero results: show a different empty state with 'No results found' heading and suggestions to try broader terms",
+        "Empty states use slate-400 text color and are vertically centered in the results area",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 11,
+      "passes": true,
+      "notes": "Depends on US-005 (base theme) and US-009 (results area). Replace the existing empty state in page.tsx. The suggested queries should be representative of the semantic_scholar_papers collection content."
+    },
+    {
+      "id": "US-012",
+      "title": "Add v2.6 feature callout badges",
+      "description": "As a demo viewer, I want to see which Milvus v2.6 features power each capability so that I understand the technology behind the demo.",
+      "acceptanceCriteria": [
+        "Small badge component: rounded-full, text-xs, px-2 py-0.5, blue-50 background, blue-600 text",
+        "Badge near Hybrid mode in the search switcher: 'Hybrid Search'",
+        "Badge near the autocomplete dropdown: 'NGRAM Index'",
+        "Badge near Boost Ranker toggle in settings panel: 'v2.6 Boost Ranker'",
+        "Badge near the filter sidebar heading: 'Filtered Search'",
+        "Each badge has a title attribute tooltip explaining the feature in one sentence",
+        "Badges are subtle and do not disrupt the layout or visual hierarchy",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 12,
+      "passes": true,
+      "notes": "This is the final polish story. Depends on US-007 (mode switcher), US-008 (settings panel), US-010 (filter sidebar) all being complete so badges can be placed near them. Keep badges minimal — they are informational, not decorative."
+    }
+  ]
+}
