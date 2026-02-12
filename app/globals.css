@@ -51,6 +51,16 @@ button:focus {
   outline: none;
 }
 
+/* Search input focus ring animation */
+.search-input {
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.search-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
 /* Smooth transitions for interactive elements (200ms) */
 a, button, input, select, label,
 .transition-all {

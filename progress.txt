@@ -71,3 +71,13 @@
   - Removed `gradient-text` CSS class and `backdrop-blur-card` — no longer needed with light theme
   - The empty state icon now uses `bg-blue-50` instead of gradient background
 ---
+
+## 2026-02-12 - US-006
+- What was implemented: Redesigned header and search input — increased header vertical spacing, made search input larger (py-4) with subtle shadow, added animated focus ring via `.search-input` CSS class with 200ms transition on border-color and box-shadow, refined search button (rounded-md, slightly taller), adjusted autocomplete dropdown spacing (mt-1.5, py-2.5, shadow-md), added pointer-events-none on search icon
+- Files changed: `app/page.tsx` (modified), `app/globals.css` (modified)
+- **Learnings for future iterations:**
+  - The `.search-input` CSS class provides animated focus ring (200ms ease transition on border-color + box-shadow) — reuse this pattern for other prominent inputs
+  - Adding `pointer-events-none` to icons inside inputs prevents them from intercepting clicks intended for the input
+  - Most of the US-006 criteria were already satisfied by US-005's base theme work — focus on incremental refinement
+  - Autocomplete dropdown shadow uses `shadow-md` (not `shadow-lg`) for subtlety matching the light theme
+---

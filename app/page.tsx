@@ -226,9 +226,9 @@ export default function Home() {
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="bg-white border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-4 pt-8 pb-8">
-          <div className="text-center mb-6">
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-800 mb-2">
+        <div className="max-w-6xl mx-auto px-4 pt-10 pb-8">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-800 mb-1.5">
               Paper Search
             </h1>
             <p className="text-slate-500 text-sm">
@@ -239,7 +239,7 @@ export default function Home() {
           {/* Search Box */}
           <div className="relative max-w-2xl mx-auto">
             <div className="relative">
-              <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
               <input
                 ref={inputRef}
                 type="text"
@@ -249,13 +249,13 @@ export default function Home() {
                 onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                 placeholder="Search for papers..."
-                className="w-full pl-12 pr-28 py-3.5 bg-white border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 text-base"
+                className="search-input w-full pl-12 pr-28 py-4 bg-white border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 text-base shadow-sm"
                 autoComplete="off"
               />
               <button
                 onClick={handleSearch}
                 disabled={loading || !query.trim()}
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-5 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-5 py-2.5 bg-blue-600 text-white rounded-md font-medium text-sm hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
               >
                 Search
               </button>
@@ -263,14 +263,14 @@ export default function Home() {
 
             {/* Autocomplete dropdown */}
             {showSuggestions && suggestions.length > 0 && (
-              <ul className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden custom-scrollbar max-h-64 overflow-auto">
+              <ul className="absolute z-20 left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-lg shadow-md overflow-hidden custom-scrollbar max-h-64 overflow-auto">
                 {suggestions.map((title, i) => {
                   const q = query.trim();
                   const idx = title.indexOf(q);
                   return (
                     <li
                       key={i}
-                      className={`px-4 py-3 text-sm cursor-pointer border-b border-slate-100 last:border-0 flex items-center gap-3 ${
+                      className={`px-4 py-2.5 text-sm cursor-pointer border-b border-slate-100 last:border-0 flex items-center gap-3 ${
                         i === selectedIdx
                           ? 'bg-blue-50 text-blue-900'
                           : 'text-slate-700 hover:bg-slate-50'
