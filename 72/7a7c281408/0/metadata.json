@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "727a7c281408",
+  "session_id": "6993901e-a36a-495d-b5f6-364632e30da2",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-12T12:41:45.949343Z",
+  "branch": "ralph/milvus-v26-paper-search",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/globals.css",
+    "app/page.tsx",
+    "prd.json",
+    "progress.txt"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 49144,
+    "cache_read_tokens": 851690,
+    "output_tokens": 142,
+    "api_call_count": 17
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-12T12:41:45.917338Z",
+    "agent_lines": 313,
+    "human_added": 562,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 877,
+    "agent_percentage": 35.689851767388824
+  }
+}
