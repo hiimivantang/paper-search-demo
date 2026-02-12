@@ -141,3 +141,14 @@
   - The suggested query pills use `rounded-full` with `bg-blue-50 border border-blue-200` styling — consistent with filter chip styling
   - Empty states are vertically centered using `py-20` (pre-search) and `py-16` (zero results) within the `<main>` flex area
 ---
+
+## 2026-02-12 - US-012
+- What was implemented: Added v2.6 feature callout badges to four locations: (1) "v2.6" badge on the Hybrid mode button in the search switcher, positioned absolute top-right; (2) "NGRAM Index" badge inside the autocomplete dropdown as a subtle header row; (3) "v2.6 Boost Ranker" badge next to the Boost Ranker label in the settings popover; (4) "Filtered Search" badge next to the Filters heading in the sidebar. Each badge has a title tooltip explaining the feature.
+- Files changed: `app/page.tsx` (modified), `prd.json` (US-012 passes: true)
+- **Learnings for future iterations:**
+  - Badge styling pattern: `rounded-full text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 font-medium` — consistent across all badge placements
+  - For badges on buttons with constrained space (like the mode switcher), use `absolute` positioning with negative offsets (`-top-2 -right-2`) and add `relative` to the parent
+  - For badges in list/dropdown contexts (autocomplete), a non-interactive `<li>` row with `flex justify-end` works well as a subtle header badge
+  - Each badge uses `title` attribute for tooltip — lightweight, no extra components needed
+  - All badges are informational only (no click handlers) — they don't disrupt layout or interactive behavior
+---

@@ -222,7 +222,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 12,
-      "passes": false,
+      "passes": true,
       "notes": "This is the final polish story. Depends on US-007 (mode switcher), US-008 (settings panel), US-010 (filter sidebar) all being complete so badges can be placed near them. Keep badges minimal — they are informational, not decorative."
     }
   ]

@@ -331,7 +331,7 @@ export default function Home() {
                 <button
                   key={mode}
                   onClick={() => handleSearchModeChange(mode)}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 relative ${
                     searchMode === mode
                       ? 'bg-blue-600 text-white shadow-sm'
                       : 'text-slate-600 hover:text-slate-800 hover:bg-slate-200'
@@ -343,6 +343,14 @@ export default function Home() {
                   }`}>
                     {subtitle}
                   </span>
+                  {mode === 'hybrid' && (
+                    <span
+                      className="absolute -top-2 -right-2 rounded-full text-[9px] px-1.5 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 font-medium leading-none whitespace-nowrap"
+                      title="Milvus v2.6 hybrid search combines dense vector and BM25 sparse retrieval in a single query"
+                    >
+                      v2.6
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -407,8 +415,16 @@ export default function Home() {
                             onChange={(e) => setUseBoostRanker(e.target.checked)}
                             className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 mt-0.5"
                           />
-                          <div>
-                            <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Boost Ranker <span className="text-[10px] font-normal text-blue-600">v2.6</span></span>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Boost Ranker</span>
+                              <span
+                                className="rounded-full text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 font-medium"
+                                title="Milvus v2.6 Boost Ranker applies metadata-driven score boosting for recency and citation count"
+                              >
+                                v2.6 Boost Ranker
+                              </span>
+                            </div>
                             <p className="text-xs text-slate-400 mt-0.5">Recency + citation boosting</p>
                           </div>
                         </label>
@@ -546,6 +562,14 @@ export default function Home() {
             {/* Autocomplete dropdown */}
             {showSuggestions && suggestions.length > 0 && (
               <ul className="absolute z-20 left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-lg shadow-md overflow-hidden custom-scrollbar max-h-64 overflow-auto">
+                <li className="flex justify-end px-3 py-1 border-b border-slate-100 bg-slate-50/50">
+                  <span
+                    className="rounded-full text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 font-medium"
+                    title="NGRAM index on the title field enables fast substring matching for instant autocomplete"
+                  >
+                    NGRAM Index
+                  </span>
+                </li>
                 {suggestions.map((title, i) => {
                   const q = query.trim();
                   const idx = title.indexOf(q);
@@ -592,7 +616,15 @@ export default function Home() {
           {/* Filter Sidebar */}
           <aside className="w-full md:w-64 flex-shrink-0">
             <div className="bg-gray-50 rounded-lg p-4 space-y-5">
-              <h3 className="text-sm font-semibold text-slate-700">Filters</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-700">Filters</h3>
+                <span
+                  className="rounded-full text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 font-medium"
+                  title="Milvus filtered search applies scalar filters alongside vector search for precise result narrowing"
+                >
+                  Filtered Search
+                </span>
+              </div>
 
               {/* Year Range */}
               <div>
