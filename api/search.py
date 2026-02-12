@@ -63,6 +63,7 @@ def search_papers(request_data: dict) -> dict:
     limit = request_data.get('limit', 10)
     use_time_decay = request_data.get('use_time_decay', False)
     use_boost = request_data.get('use_boost', False)
+    use_boost_ranker = request_data.get('use_boost_ranker', False)
     highlight_mode = request_data.get('highlight_mode', 'none')
     time_decay_params = request_data.get('time_decay_params') or {}
     boost_params = request_data.get('boost_params') or {}
@@ -140,6 +141,29 @@ def search_papers(request_data: dict) -> dict:
             }
         ))
 
+    # Boost Ranker (v2.6): recency boost for year >= 2022, citation boost for citationcount >= 500
+    if use_boost_ranker:
+        functions.append(Function(
+            name="boost_ranker_recency",
+            input_field_names=[],
+            function_type=FunctionType.RERANK,
+            params={
+                "reranker": "boost",
+                "filter": "year >= 2022",
+                "weight": 1.3
+            }
+        ))
+        functions.append(Function(
+            name="boost_ranker_citations",
+            input_field_names=[],
+            function_type=FunctionType.RERANK,
+            params={
+                "reranker": "boost",
+                "filter": "citationcount >= 500",
+                "weight": 1.2
+            }
+        ))
+
     ranker = None
     if functions:
         ranker = FunctionScore(functions=functions)
@@ -169,6 +193,21 @@ def search_papers(request_data: dict) -> dict:
         }
 
         result = client.hybrid_search(COLLECTION_NAME, **hybrid_kwargs)
+
+        # hybrid_search only supports RRFRanker/WeightedRanker, so apply
+        # FunctionScore-style boost as post-processing on scores
+        if use_boost_ranker and result and result[0]:
+            for hit in result[0]:
+                entity = hit.get('entity', hit)
+                year = entity.get('year', 0)
+                citations = entity.get('citationcount', 0)
+                multiplier = 1.0
+                if year >= 2022:
+                    multiplier *= 1.3
+                if citations >= 500:
+                    multiplier *= 1.2
+                hit['score'] = hit.get('score', hit.get('distance', 0)) * multiplier
+            result[0] = sorted(result[0], key=lambda h: h.get('score', 0), reverse=True)
 
     elif search_mode == 'keyword':
         # BM25 lexical search on title_sparse field
@@ -238,6 +277,7 @@ def search_papers(request_data: dict) -> dict:
         'options': {
             'use_time_decay': use_time_decay,
             'use_boost': use_boost,
+            'use_boost_ranker': use_boost_ranker,
             'highlight_mode': highlight_mode,
             'search_mode': search_mode,
             'limit': limit,
