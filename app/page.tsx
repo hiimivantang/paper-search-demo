@@ -20,6 +20,7 @@ interface SearchResult {
   options: {
     use_time_decay: boolean;
     use_boost: boolean;
+    use_boost_ranker?: boolean;
     highlight_mode?: string;
     limit: number;
   };
@@ -116,9 +117,11 @@ export default function Home() {
   // Options
   const [useTimeDecay, setUseTimeDecay] = useState(false);
   const [useBoost, setUseBoost] = useState(false);
+  const [useBoostRanker, setUseBoostRanker] = useState(false);
   const [highlightMode, setHighlightMode] = useState<HighlightMode>('lexical');
   const [limit, setLimit] = useState(10);
-  const [showOptions, setShowOptions] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
 
   // Autocomplete
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -152,6 +155,19 @@ export default function Home() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [query]);
 
+  // Close settings popover on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
+        setShowSettings(false);
+      }
+    }
+    if (showSettings) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showSettings]);
+
   // Advanced time decay parameters
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [origin, setOrigin] = useState(2025);
@@ -177,6 +193,7 @@ export default function Home() {
           search_mode: searchMode,
           use_time_decay: useTimeDecay,
           use_boost: useBoost,
+          use_boost_ranker: useBoostRanker,
           highlight_mode: highlightMode,
           time_decay_params: useTimeDecay ? { origin, offset, decay, scale } : undefined,
         }),
@@ -194,7 +211,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [query, limit, searchMode, useTimeDecay, useBoost, highlightMode, origin, offset, decay, scale]);
+  }, [query, limit, searchMode, useTimeDecay, useBoost, useBoostRanker, highlightMode, origin, offset, decay, scale]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (showSuggestions && suggestions.length > 0) {
@@ -240,7 +257,13 @@ export default function Home() {
     }
   }, [searchMode, query, handleSearch]);
 
-  const activeOptionsCount = [useTimeDecay, useBoost, highlightMode !== 'none'].filter(Boolean).length;
+  // Build active settings summary
+  const settingsSummary: string[] = [];
+  settingsSummary.push(`${limit} results`);
+  if (useBoostRanker) settingsSummary.push('Boost Ranker');
+  if (useTimeDecay) settingsSummary.push('Time Decay');
+  if (useBoost) settingsSummary.push('Citation Boost');
+  if (highlightMode === 'lexical') settingsSummary.push('Keyword highlights');
 
   return (
     <div className="min-h-screen bg-white">
@@ -256,8 +279,8 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Search Mode Switcher */}
-          <div className="flex justify-center mb-6">
+          {/* Search Mode Switcher + Settings Gear */}
+          <div className="flex justify-center items-center gap-2 mb-6">
             <div className="inline-flex bg-slate-100 rounded-lg p-1 gap-1">
               {([
                 { mode: 'semantic' as SearchMode, label: 'Semantic', subtitle: 'Conceptual similarity' },
@@ -281,6 +304,176 @@ export default function Home() {
                   </span>
                 </button>
               ))}
+            </div>
+
+            {/* Settings Gear Button */}
+            <div ref={settingsRef} className="relative">
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className={`p-2.5 rounded-lg border transition-colors duration-200 ${
+                  showSettings
+                    ? 'bg-slate-100 border-slate-300 text-slate-700'
+                    : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300'
+                }`}
+                title="Search settings"
+              >
+                <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.331 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                </svg>
+              </button>
+
+              {/* Settings Popover */}
+              {showSettings && (
+                <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-lg border border-slate-200 shadow-lg z-30 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100">
+                    <span className="text-sm font-semibold text-slate-700">Search Settings</span>
+                  </div>
+                  <div className="px-4 py-3 space-y-3">
+                    {/* Ranker Toggles */}
+                    <div>
+                      <span className="text-xs font-medium text-slate-500 mb-2 block">Rankers</span>
+                      <div className="space-y-1">
+                        <label className="flex items-start gap-3 cursor-pointer group p-2 rounded-lg hover:bg-slate-50 -mx-1">
+                          <input
+                            type="checkbox"
+                            checked={useTimeDecay}
+                            onChange={(e) => setUseTimeDecay(e.target.checked)}
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Time Decay</span>
+                            <p className="text-xs text-slate-400 mt-0.5">Prefer recent papers</p>
+                          </div>
+                        </label>
+
+                        <label className="flex items-start gap-3 cursor-pointer group p-2 rounded-lg hover:bg-slate-50 -mx-1">
+                          <input
+                            type="checkbox"
+                            checked={useBoost}
+                            onChange={(e) => setUseBoost(e.target.checked)}
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Citation Boost</span>
+                            <p className="text-xs text-slate-400 mt-0.5">Boost highly-cited papers</p>
+                          </div>
+                        </label>
+
+                        <label className="flex items-start gap-3 cursor-pointer group p-2 rounded-lg hover:bg-slate-50 -mx-1">
+                          <input
+                            type="checkbox"
+                            checked={useBoostRanker}
+                            onChange={(e) => setUseBoostRanker(e.target.checked)}
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Boost Ranker <span className="text-[10px] font-normal text-blue-600">v2.6</span></span>
+                            <p className="text-xs text-slate-400 mt-0.5">Recency + citation boosting</p>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Highlighting */}
+                    <div className="pt-2 border-t border-slate-100">
+                      <span className="text-xs font-medium text-slate-500 mb-1.5 block">Highlighting</span>
+                      <div className="flex bg-slate-100 rounded-lg p-0.5">
+                        <button
+                          onClick={() => setHighlightMode('none')}
+                          className={`flex-1 px-3 py-1 text-xs font-medium rounded-md ${
+                            highlightMode === 'none'
+                              ? 'bg-white text-slate-700 shadow-sm'
+                              : 'text-slate-500 hover:text-slate-700'
+                          }`}
+                        >
+                          Off
+                        </button>
+                        <button
+                          onClick={() => setHighlightMode('lexical')}
+                          className={`flex-1 px-3 py-1 text-xs font-medium rounded-md ${
+                            highlightMode === 'lexical'
+                              ? 'bg-white text-slate-700 shadow-sm'
+                              : 'text-slate-500 hover:text-slate-700'
+                          }`}
+                        >
+                          Keyword Highlights
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Result Limit */}
+                    <div className="pt-2 border-t border-slate-100">
+                      <span className="text-xs font-medium text-slate-500 mb-1.5 block">Results per search</span>
+                      <select
+                        value={limit}
+                        onChange={(e) => setLimit(Number(e.target.value))}
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
+                      >
+                        {[5, 10, 15, 20, 25, 50].map(n => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Advanced Time Decay Settings */}
+                    {useTimeDecay && (
+                      <div className="pt-2 border-t border-slate-100">
+                        <button
+                          onClick={() => setShowAdvanced(!showAdvanced)}
+                          className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                        >
+                          <ChevronIcon open={showAdvanced} className="w-3 h-3" />
+                          Advanced Settings
+                        </button>
+
+                        {showAdvanced && (
+                          <div className="grid grid-cols-2 gap-2 mt-2 bg-slate-50 p-3 rounded-lg">
+                            <div>
+                              <label className="block text-xs text-slate-500 mb-1 font-medium">Origin</label>
+                              <input
+                                type="number"
+                                value={origin}
+                                onChange={(e) => setOrigin(Number(e.target.value))}
+                                className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-slate-500 mb-1 font-medium">Offset</label>
+                              <input
+                                type="number"
+                                value={offset}
+                                onChange={(e) => setOffset(Number(e.target.value))}
+                                className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-slate-500 mb-1 font-medium">Decay</label>
+                              <input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="1"
+                                value={decay}
+                                onChange={(e) => setDecay(Number(e.target.value))}
+                                className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-slate-500 mb-1 font-medium">Scale</label>
+                              <input
+                                type="number"
+                                value={scale}
+                                onChange={(e) => setScale(Number(e.target.value))}
+                                className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -344,169 +537,17 @@ export default function Home() {
               </ul>
             )}
           </div>
+
+          {/* Active settings summary */}
+          <p className="text-center text-sm text-slate-500 mt-3">
+            {settingsSummary.join(' · ')}
+          </p>
         </div>
       </div>
 
-      {/* Two-column layout: sidebar + main content */}
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="flex flex-col md:flex-row gap-6">
-          {/* Left sidebar — collapses to horizontal on mobile */}
-          <aside className="w-full md:w-64 flex-shrink-0">
-            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-              <button
-                onClick={() => setShowOptions(!showOptions)}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 text-left"
-              >
-                <div className="flex items-center gap-2">
-                  <svg className="w-4 h-4 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M17 2.75a.75.75 0 0 0-1.5 0v5.5a.75.75 0 0 0 1.5 0v-5.5ZM17 15.75a.75.75 0 0 0-1.5 0v1.5a.75.75 0 0 0 1.5 0v-1.5ZM3.75 15a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5a.75.75 0 0 1 .75-.75ZM4.5 2.75a.75.75 0 0 0-1.5 0v5.5a.75.75 0 0 0 1.5 0v-5.5ZM10 11a.75.75 0 0 1 .75.75v5.5a.75.75 0 0 1-1.5 0v-5.5A.75.75 0 0 1 10 11ZM10.75 2.75a.75.75 0 0 0-1.5 0v1.5a.75.75 0 0 0 1.5 0v-1.5ZM10 5a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM3.75 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM16.25 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />
-                  </svg>
-                  <span className="text-sm font-medium text-slate-700">Search Options</span>
-                  {activeOptionsCount > 0 && (
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                      {activeOptionsCount}
-                    </span>
-                  )}
-                </div>
-                <ChevronIcon open={showOptions} className="w-4 h-4 text-slate-400" />
-              </button>
-
-              {showOptions && (
-                <div className="px-4 pb-4 border-t border-slate-100">
-                  <div className="space-y-3 pt-3">
-                    {/* Rankers */}
-                    <label className="flex items-start gap-3 cursor-pointer group p-2 rounded-lg hover:bg-slate-50 -mx-1">
-                      <input
-                        type="checkbox"
-                        checked={useTimeDecay}
-                        onChange={(e) => setUseTimeDecay(e.target.checked)}
-                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 mt-0.5"
-                      />
-                      <div>
-                        <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Time Decay</span>
-                        <p className="text-xs text-slate-400 mt-0.5">Prefer recent papers</p>
-                      </div>
-                    </label>
-
-                    <label className="flex items-start gap-3 cursor-pointer group p-2 rounded-lg hover:bg-slate-50 -mx-1">
-                      <input
-                        type="checkbox"
-                        checked={useBoost}
-                        onChange={(e) => setUseBoost(e.target.checked)}
-                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 mt-0.5"
-                      />
-                      <div>
-                        <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Citation Boost</span>
-                        <p className="text-xs text-slate-400 mt-0.5">Boost highly-cited papers</p>
-                      </div>
-                    </label>
-                  </div>
-
-                  {/* Highlighting & Limit */}
-                  <div className="space-y-3 mt-3 pt-3 border-t border-slate-100">
-                    <div>
-                      <span className="text-xs font-medium text-slate-500 mb-1.5 block">Highlight</span>
-                      <div className="flex bg-slate-100 rounded-lg p-0.5">
-                        <button
-                          onClick={() => setHighlightMode('none')}
-                          className={`flex-1 px-3 py-1 text-xs font-medium rounded-md ${
-                            highlightMode === 'none'
-                              ? 'bg-white text-slate-700 shadow-sm'
-                              : 'text-slate-500 hover:text-slate-700'
-                          }`}
-                        >
-                          Off
-                        </button>
-                        <button
-                          onClick={() => setHighlightMode('lexical')}
-                          className={`flex-1 px-3 py-1 text-xs font-medium rounded-md ${
-                            highlightMode === 'lexical'
-                              ? 'bg-white text-slate-700 shadow-sm'
-                              : 'text-slate-500 hover:text-slate-700'
-                          }`}
-                        >
-                          Lexical
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <span className="text-xs font-medium text-slate-500 mb-1.5 block">Results</span>
-                      <select
-                        value={limit}
-                        onChange={(e) => setLimit(Number(e.target.value))}
-                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
-                      >
-                        {[5, 10, 15, 20, 25, 50].map(n => (
-                          <option key={n} value={n}>{n}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Advanced Options */}
-                  {useTimeDecay && (
-                    <div className="mt-3 pt-3 border-t border-slate-100">
-                      <button
-                        onClick={() => setShowAdvanced(!showAdvanced)}
-                        className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-                      >
-                        <ChevronIcon open={showAdvanced} className="w-3 h-3" />
-                        Advanced Settings
-                      </button>
-
-                      {showAdvanced && (
-                        <div className="grid grid-cols-2 gap-2 mt-2 bg-slate-50 p-3 rounded-lg">
-                          <div>
-                            <label className="block text-xs text-slate-500 mb-1 font-medium">Origin</label>
-                            <input
-                              type="number"
-                              value={origin}
-                              onChange={(e) => setOrigin(Number(e.target.value))}
-                              className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-slate-500 mb-1 font-medium">Offset</label>
-                            <input
-                              type="number"
-                              value={offset}
-                              onChange={(e) => setOffset(Number(e.target.value))}
-                              className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-slate-500 mb-1 font-medium">Decay</label>
-                            <input
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              max="1"
-                              value={decay}
-                              onChange={(e) => setDecay(Number(e.target.value))}
-                              className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-slate-500 mb-1 font-medium">Scale</label>
-                            <input
-                              type="number"
-                              value={scale}
-                              onChange={(e) => setScale(Number(e.target.value))}
-                              className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </aside>
-
-          {/* Main content area */}
-          <main className="flex-1 min-w-0">
+      {/* Main content */}
+      <div className="max-w-4xl mx-auto px-4 py-6">
+          <main>
             {/* Error Display */}
             {error && (
               <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
@@ -547,6 +588,14 @@ export default function Home() {
                           <path fillRule="evenodd" d="M12.577 4.878a.75.75 0 01.919-.53l4.78 1.281a.75.75 0 01.531.919l-1.281 4.78a.75.75 0 01-1.449-.387l.81-3.022a19.407 19.407 0 00-5.594 5.203.75.75 0 01-1.139.093L7 10.06l-4.72 4.72a.75.75 0 01-1.06-1.06l5.25-5.25a.75.75 0 011.06 0l3.074 3.073a20.923 20.923 0 015.545-4.931l-3.042.815a.75.75 0 01-.53-.919z" clipRule="evenodd" />
                         </svg>
                         Citation Boost
+                      </span>
+                    )}
+                    {results.options.use_boost_ranker && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full">
+                        <svg className="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401z" clipRule="evenodd" />
+                        </svg>
+                        Boost Ranker
                       </span>
                     )}
                   </div>
@@ -639,16 +688,15 @@ export default function Home() {
               </div>
             )}
           </main>
-        </div>
 
-        {/* Footer */}
-        <footer className="py-8 mt-8 border-t border-slate-200 text-center">
-          <p className="text-xs text-slate-400">
-            Powered by <span className="font-medium text-slate-500">Milvus</span> vector database
-            &nbsp;&middot;&nbsp;
-            <span className="font-medium text-slate-500">OpenAI</span> text-embedding-3-small
-          </p>
-        </footer>
+          {/* Footer */}
+          <footer className="py-8 mt-8 border-t border-slate-200 text-center">
+            <p className="text-xs text-slate-400">
+              Powered by <span className="font-medium text-slate-500">Milvus</span> vector database
+              &nbsp;&middot;&nbsp;
+              <span className="font-medium text-slate-500">OpenAI</span> text-embedding-3-small
+            </p>
+          </footer>
       </div>
     </div>
   );
